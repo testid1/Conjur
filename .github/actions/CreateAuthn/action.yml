@@ -91,5 +91,5 @@ runs:
         curl -v \
           -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
           -X PATCH \
-          "$CONJUR_URL/policies/conjur/policy/data/terraform" \
+          "$CONJUR_URL/policies/conjur/policy/data/authn-jwt" \
           --data-binary "@authenticator-policy.yml"
