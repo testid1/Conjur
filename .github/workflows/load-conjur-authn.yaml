@@ -1,91 +1,40 @@
 name: Load Conjur Authenticator Policy
 
-# Run manually
 on:
   workflow_dispatch:
 
-# Allow OIDC and code checkout
 permissions:
-  id-token: write   # for GitHub OIDC
-  contents: read    # so we can checkout files
+  id-token: write
+  contents: read
 
 jobs:
   load-authenticator:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Check out your repo so we can read the config & action code
+      # 1) Checkout so we have the config & action code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2) Install yq to parse the YAML config
+      # 2) Install yq for YAML parsing
       - name: Install yq
         run: |
           sudo wget -O /usr/local/bin/yq \
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      # 3) Load config values into environment variables
+      # 3) Read config values into environment variables
       - name: Load authenticator config
         id: load-config
         run: |
-          echo "JWKS_URI=$(yq e '.jwks_uri' .github/conjur/authn-config.yml)"        >> $GITHUB_ENV
-          echo "JWT_ISSUER=$(yq e '.jwt_issuer' .github/conjur/authn-config.yml)"    >> $GITHUB_ENV
+          echo "JWKS_URI=$(yq e '.jwks_uri' .github/conjur/authn-config.yml)"          >> $GITHUB_ENV
+          echo "JWT_ISSUER=$(yq e '.jwt_issuer' .github/conjur/authn-config.yml)"      >> $GITHUB_ENV
           echo "JWT_IDENTITY_PATH=$(yq e '.identity_path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
           echo "TOKEN_APP_PROPERTY=$(yq e '.token_app_property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
           echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
-          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"     >> $GITHUB_ENV
+          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"       >> $GITHUB_ENV
 
-      # 4) Invoke your local CreateAuthn action
-      - name: Create Authenticator in Conjur
-        uses: ./.github/actions/CreateAuthn
-        with:
-          CONJUR_URL:         ${{ secrets.CONJUR_URL }}
-          CONJUR_ACCOUNT:     ${{ secrets.CONJUR_ACCOUNT }}
-          SERVICE_ID:         ${{ env.SERVICE_ID }}
-          JWT_ISSUER:         ${{ env.JWT_ISSUER }}
-          JWKS_URI:           ${{ env.JWKS_URI }}
-          JWT_IDENTITY_PATH:  ${{ env.JWT_IDENTITY_PATH }}
-          AUTHENTICATOR_NAME: ${{ env.AUTHENTICATOR_NAME }}
-name: Load Conjur Authenticator Policy
-
-# Run manually
-on:
-  workflow_dispatch:
-
-# Allow OIDC and code checkout
-permissions:
-  id-token: write   # for GitHub OIDC
-  contents: read    # so we can checkout files
-
-jobs:
-  load-authenticator:
-    runs-on: ubuntu-latest
-
-    steps:
-      # 1) Check out your repo so we can read the config & action code
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # 2) Install yq to parse the YAML config
-      - name: Install yq
-        run: |
-          sudo wget -O /usr/local/bin/yq \
-            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod +x /usr/local/bin/yq
-
-      # 3) Load config values into environment variables
-      - name: Load authenticator config
-        id: load-config
-        run: |
-          echo "JWKS_URI=$(yq e '.jwks_uri' .github/conjur/authn-config.yml)"        >> $GITHUB_ENV
-          echo "JWT_ISSUER=$(yq e '.jwt_issuer' .github/conjur/authn-config.yml)"    >> $GITHUB_ENV
-          echo "JWT_IDENTITY_PATH=$(yq e '.identity_path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
-          echo "TOKEN_APP_PROPERTY=$(yq e '.token_app_property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
-          echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
-          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"     >> $GITHUB_ENV
-
-      # 4) Invoke your local CreateAuthn action
+      # 4) Invoke the CreateAuthn composite action
       - name: Create Authenticator in Conjur
         uses: ./.github/actions/CreateAuthn
         with:
