@@ -1,0 +1,58 @@
+name: Load Conjur Authenticator Policy
+
+# manual trigger for safety—you’ll run this once to bootstrap your authenticator
+on:
+  workflow_dispatch:
+
+# allow OIDC and repo checkout
+permissions:
+  id-token: write     # to mint the GitHub OIDC JWT
+  contents: read      # to checkout your policy file
+
+jobs:
+  load-authenticator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Request GitHub OIDC token
+        id: id-token
+        run: |
+          # nothing to do here—GitHub automatically sets ACTIONS_ID_TOKEN_REQUEST_*
+          echo "OIDC endpoint: $ACTIONS_ID_TOKEN_REQUEST_URL"
+          echo "OIDC token header: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+      - name: Exchange OIDC for Conjur session token
+        id: conjur-auth
+        shell: bash
+        run: |
+          # 1) Fetch the GitHub-issued JWT
+          GIT_JWT=$(curl -s \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" \
+            | jq -r .value)
+
+          # 2) Exchange it for a Conjur session token
+          SESSION_TOKEN=$(curl -s -k \
+            --request POST \
+            "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "jwt=$GIT_JWT")
+
+          # expose it for next step
+          echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
+        env:
+          CONJUR_URL: ${{ secrets.CONJUR_URL }}
+          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
+          CONJUR_SERVICE_ID: ${{ secrets.CONJUR_SERVICE_ID }}
+
+      - name: Load authenticator policy into Conjur
+        shell: bash
+        run: |
+          curl -v \
+            -H "Authorization: Token token=\"${{ steps.conjur-auth.outputs.session }}\"" \
+            -X PATCH \
+            "$CONJUR_URL/policies/conjur/policy/data/terraform" \
+            --data-binary "@.github/conjur/conjur-authn.yml"
+        env:
+          CONJUR_URL:    ${{ secrets.CONJUR_URL }}
