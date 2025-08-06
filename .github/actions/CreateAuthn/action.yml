@@ -3,25 +3,25 @@ description: "Defines a new JWT authenticator in Conjur via policy"
 
 inputs:
   CONJUR_URL:
-    description: "Conjur API base URL (e.g. https://conjur.example.com/api)"
+    description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
     required: true
   CONJUR_ACCOUNT:
     description: "Conjur account name"
     required: true
   SERVICE_ID:
-    description: "JWT authenticator service ID"
+    description: "JWT authenticator service ID (e.g. 'github')"
     required: true
   JWT_ISSUER:
-    description: "Expected 'iss' claim"
+    description: "Expected 'iss' claim in the JWT"
     required: true
   JWKS_URI:
-    description: "JWKS endpoint URL"
+    description: "JWKS endpoint URL for your issuer"
     required: true
   JWT_IDENTITY_PATH:
-    description: "JSONPath to the identity claim (e.g. $.sub)"
+    description: "JSONPath to the identity claim (e.g. '$.sub')"
     required: true
   AUTHENTICATOR_NAME:
-    description: "Name under conjur/authn-jwt/…"
+    description: "Name for the new authenticator under conjur/authn-jwt/"
     required: true
 
 runs:
@@ -35,41 +35,42 @@ runs:
         CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
         CONJUR_SERVICE_ID: ${{ inputs.SERVICE_ID }}
       run: |
+        set -e
+        # 1) Mint the GitHub OIDC JWT
         GIT_JWT=$(curl -s \
           -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
           "$ACTIONS_ID_TOKEN_REQUEST_URL" \
           | jq -r .value)
 
+        # 2) Exchange it for a Conjur session token
         SESSION_TOKEN=$(curl -s -k \
-          --request POST \
-          "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
-          --header "Content-Type: application/x-www-form-urlencoded" \
+          -X POST "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
+          -H "Content-Type: application/x-www-form-urlencoded" \
           --data-urlencode "jwt=$GIT_JWT")
 
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
 
-    - name: Build authenticator policy
+    - name: Build authenticator policy file
       shell: bash
       run: |
-        cat <<EOF > authenticator-policy.yml
-- !policy
-  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}
-  body:
-    - !webservice
-    - !variable jwt-issuer
-      value: "${{ inputs.JWT_ISSUER }}"
-    - !variable jwks-url
-      value: "${{ inputs.JWKS_URI }}"
-    - !variable identity-path
-      value: "${{ inputs.JWT_IDENTITY_PATH }}"
-    - !group authenticatable
-    - !permit
-      role: !group authenticatable
-      privileges: [ read, authenticate ]
-      resource: !webservice
-EOF
+        # Overwrite or create the file
+        echo "- !policy" > authenticator-policy.yml
+        echo "  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
+        echo "  body:" >> authenticator-policy.yml
+        echo "    - !webservice" >> authenticator-policy.yml
+        echo "    - !variable jwt-issuer" >> authenticator-policy.yml
+        echo "      value: \"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
+        echo "    - !variable jwks-url" >> authenticator-policy.yml
+        echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
+        echo "    - !variable identity-path" >> authenticator-policy.yml
+        echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
+        echo "    - !group authenticatable" >> authenticator-policy.yml
+        echo "    - !permit" >> authenticator-policy.yml
+        echo "      role: !group authenticatable" >> authenticator-policy.yml
+        echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
+        echo "      resource: !webservice" >> authenticator-policy.yml
 
-    - name: Load into Conjur
+    - name: Load policy into Conjur
       shell: bash
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
