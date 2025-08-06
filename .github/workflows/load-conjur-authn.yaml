@@ -37,7 +37,7 @@ jobs:
 
       # 4) Invoke your composite action to build & load the authenticator
       - name: Create Authenticator in Conjur
-        uses: ./.github/actions/CreateAuth
+        uses: ./.github/actions/CreateAuthn
         with:
           JWKS_URI:           ${{ env.JWKS_URI }}
           JWT_ISSUER:         ${{ env.JWT_ISSUER }}
