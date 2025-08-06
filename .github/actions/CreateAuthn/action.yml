@@ -1,0 +1,83 @@
+name: "Create Conjur JWT Authenticator"
+description: "Defines a new JWT authenticator in Conjur via policy"
+
+inputs:
+  JWKS_URI:
+    description: "The JWKS endpoint URL for your JWT issuer"
+    required: true
+
+  JWT_ISSUER:
+    description: "Expected `iss` claim (the JWT issuer URI)"
+    required: true
+
+  JWT_IDENTITY_PATH:
+    description: "JSONPath to the identity claim in the JWT (e.g. `$.sub`)"
+    required: true
+
+  TOKEN_APP_PROPERTY:
+    description: "Logical name for this authenticator (used in the policy ID)"
+    required: true
+
+  AUTHENTICATOR_NAME:
+    description: "Name of the new JWT authenticator (appended under `authn-jwt/`)"
+    required: true
+
+  SERVICE_ID:
+    description: "The Conjur JWT authenticator service ID"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Authenticate to Conjur via OIDC
+      id: auth
+      shell: bash
+      env:
+        CONJUR_URL:        ${{ secrets.CONJUR_URL }}
+        CONJUR_ACCOUNT:    ${{ secrets.CONJUR_ACCOUNT }}
+      run: |
+        # Mint GitHub OIDC JWT
+        GIT_JWT=$(curl -s \
+          -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+          "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+
+        # Exchange for Conjur session token
+        SESSION_TOKEN=$(curl -s -k \
+          --request POST \
+          "$CONJUR_URL/authn-jwt/${{ inputs.SERVICE_ID }}/$CONJUR_ACCOUNT/authenticate" \
+          --header "Content-Type: application/x-www-form-urlencoded" \
+          --data-urlencode "jwt=$GIT_JWT")
+
+        echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
+
+    - name: Build authenticator policy YAML
+      shell: bash
+      run: |
+        cat <<EOF > authenticator-policy.yml
+- !policy
+  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}
+  body:
+    - !webservice
+    - !variable jwt-issuer
+      value: "${{ inputs.JWT_ISSUER }}"
+    - !variable jwks-url
+      value: "${{ inputs.JWKS_URI }}"
+    - !variable identity-path
+      value: "${{ inputs.JWT_IDENTITY_PATH }}"
+    - !group authenticatable
+    - !permit
+      role: !group authenticatable
+      privileges: [read, authenticate]
+      resource: !webservice
+EOF
+
+    - name: Load authenticator into Conjur
+      shell: bash
+      run: |
+        curl -v \
+          -H "Authorization: Token token=\"${{ steps.auth.outputs.session }}\"" \
+          -X PATCH \
+          "$CONJUR_URL/policies/conjur/policy/data/terraform" \
+          --data-binary "@authenticator-policy.yml"
+      env:
+        CONJUR_URL:        ${{ secrets.CONJUR_URL }}

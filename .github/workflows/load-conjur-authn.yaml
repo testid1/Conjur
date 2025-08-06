@@ -1,0 +1,47 @@
+name: Load Conjur Authenticator Policy
+
+# Trigger manually
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # needed to mint the GitHub OIDC token
+  contents: read    # to checkout your files
+
+jobs:
+  load-authenticator:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Get your code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2) Install yq for parsing YAML
+      - name: Install yq
+        run: |
+          sudo wget -O /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      # 3) Load all config values from your authn-config.yml
+      - name: Load authenticator config
+        id: load-config
+        run: |
+          echo "JWKS_URI=$(yq e '.jwks_uri' .github/conjur/authn-config.yml)"          >> $GITHUB_ENV
+          echo "JWT_ISSUER=$(yq e '.jwt_issuer' .github/conjur/authn-config.yml)"      >> $GITHUB_ENV
+          echo "JWT_IDENTITY_PATH=$(yq e '.identity_path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "TOKEN_APP_PROPERTY=$(yq e '.token_app_property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"       >> $GITHUB_ENV
+
+      # 4) Invoke your composite action to build & load the authenticator
+      - name: Create Authenticator in Conjur
+        uses: ./.github/actions/CreateAuth
+        with:
+          JWKS_URI:           ${{ env.JWKS_URI }}
+          JWT_ISSUER:         ${{ env.JWT_ISSUER }}
+          JWT_IDENTITY_PATH:  ${{ env.JWT_IDENTITY_PATH }}
+          TOKEN_APP_PROPERTY: ${{ env.TOKEN_APP_PROPERTY }}
+          AUTHENTICATOR_NAME: ${{ env.AUTHENTICATOR_NAME }}
+          SERVICE_ID:         ${{ env.SERVICE_ID }}
