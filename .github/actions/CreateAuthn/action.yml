@@ -42,6 +42,8 @@ runs:
         echo "JWT length: ${#GIT_JWT}"
         echo "Git Hub Token: "
         echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
+        echo "$GIT_JWT" > id_token.txt
+        
         
         # 2) Exchange it for a Conjur session token
         SESSION_TOKEN=$(curl -s -k \
@@ -51,6 +53,12 @@ runs:
 
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT\
 
+    - name: Upload raw jwt as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: raw-jwt
+        path: id_token.txt
+    
     - name: Build authenticator policy file
       shell: bash
       run: |
