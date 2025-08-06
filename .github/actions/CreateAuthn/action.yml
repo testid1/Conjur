@@ -49,7 +49,7 @@ runs:
           --data-urlencode "jwt=$GIT_JWT")
 
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT\
-        echo "SESSION_TOKEN is: '$SESSION_TOKEN'"
+        echo "SESSION_TOKEN is: '$SESSION_TOKEN'"\
 
     - name: Build authenticator policy file
       shell: bash
