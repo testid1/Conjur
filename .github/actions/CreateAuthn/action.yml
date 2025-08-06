@@ -3,31 +3,25 @@ description: "Defines a new JWT authenticator in Conjur via policy"
 
 inputs:
   CONJUR_URL:
-    description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
+    description: "Conjur API base URL (e.g. https://conjur.example.com/api)"
     required: true
-  
   CONJUR_ACCOUNT:
     description: "Conjur account name"
     required: true
-
   SERVICE_ID:
     description: "JWT authenticator service ID"
     required: true
-    
   JWT_ISSUER:
-    description: "Expected `iss` claim in the JWT"
+    description: "Expected 'iss' claim"
     required: true
-  
   JWKS_URI:
-    description: "JWKS endpoint URL for your JWT issuer"
+    description: "JWKS endpoint URL"
     required: true
-
   JWT_IDENTITY_PATH:
-    description: "JSONPath to the identity claim in the JWT (e.g. `$.sub`)"
+    description: "JSONPath to the identity claim (e.g. $.sub)"
     required: true
-
   AUTHENTICATOR_NAME:
-    description: "Name for the new JWT authenticator (under conjur/authn-jwt/…)"
+    description: "Name under conjur/authn-jwt/…"
     required: true
 
 runs:
@@ -54,7 +48,7 @@ runs:
 
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
 
-    - name: Build authenticator policy YAML
+    - name: Build authenticator policy
       shell: bash
       run: |
         cat <<EOF > authenticator-policy.yml
@@ -71,18 +65,18 @@ runs:
     - !group authenticatable
     - !permit
       role: !group authenticatable
-      privileges: [read, authenticate]
+      privileges: [ read, authenticate ]
       resource: !webservice
 EOF
 
-    - name: Load authenticator into Conjur
+    - name: Load into Conjur
       shell: bash
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
       run: |
         curl -v \
-          -H "Authorization: Token token=\"${SESSION_TOKEN}\"" \
+          -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
           -X PATCH \
           "$CONJUR_URL/policies/conjur/policy/data/terraform" \
           --data-binary "@authenticator-policy.yml"
