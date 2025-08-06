@@ -22,6 +22,10 @@ inputs:
     description: "Name of the new JWT authenticator (appended under `authn-jwt/`)"
     required: true
 
+  SERVICE_ID:
+    description: "The Conjur JWT authenticator service ID"
+    required: true
+
 runs:
   using: "composite"
   steps:
@@ -40,7 +44,7 @@ runs:
         # Exchange for Conjur session token
         SESSION_TOKEN=$(curl -s -k \
           --request POST \
-          "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
+          "$CONJUR_URL/authn-jwt/${{ inputs.SERVICE_ID }}/$CONJUR_ACCOUNT/authenticate" \
           --header "Content-Type: application/x-www-form-urlencoded" \
           --data-urlencode "jwt=$GIT_JWT")
 
