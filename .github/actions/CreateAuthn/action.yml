@@ -1,0 +1,12 @@
+# defines a new JWT authenticator under conjur/authn-jwt/github-lab
+- !policy
+  id: conjur/authn-jwt/github-lab
+  body:
+    - !webservice
+    - !variable jwt-issuer
+    - !variable jwks-url
+    - !group authenticatable
+    - !permit
+      role: !group authenticatable
+      privileges: [read, authenticate]
+      resource: !webservice
