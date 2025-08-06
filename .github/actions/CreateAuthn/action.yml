@@ -31,7 +31,6 @@ runs:
       env:
         CONJUR_URL:        ${{ secrets.CONJUR_URL }}
         CONJUR_ACCOUNT:    ${{ secrets.CONJUR_ACCOUNT }}
-        CONJUR_SERVICE_ID: ${{ secrets.CONJUR_SERVICE_ID }}
       run: |
         # Mint GitHub OIDC JWT
         GIT_JWT=$(curl -s \
