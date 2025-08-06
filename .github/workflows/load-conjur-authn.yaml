@@ -1,58 +1,47 @@
 name: Load Conjur Authenticator Policy
 
-# manual trigger for safety—you’ll run this once to bootstrap your authenticator
+# Trigger manually
 on:
   workflow_dispatch:
 
-# allow OIDC and repo checkout
 permissions:
-  id-token: write     # to mint the GitHub OIDC JWT
-  contents: read      # to checkout your policy file
+  id-token: write   # needed to mint the GitHub OIDC token
+  contents: read    # to checkout your files
 
 jobs:
   load-authenticator:
     runs-on: ubuntu-latest
+
     steps:
+      # 1) Get your code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Request GitHub OIDC token
-        id: id-token
+      # 2) Install yq for parsing YAML
+      - name: Install yq
         run: |
-          # nothing to do here—GitHub automatically sets ACTIONS_ID_TOKEN_REQUEST_*
-          echo "OIDC endpoint: $ACTIONS_ID_TOKEN_REQUEST_URL"
-          echo "OIDC token header: $ACTIONS_ID_TOKEN_REQUEST_TOKEN"
-      - name: Exchange OIDC for Conjur session token
-        id: conjur-auth
-        shell: bash
+          sudo wget -O /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      # 3) Load all config values from your authn-config.yml
+      - name: Load authenticator config
+        id: load-config
         run: |
-          # 1) Fetch the GitHub-issued JWT
-          GIT_JWT=$(curl -s \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL" \
-            | jq -r .value)
+          echo "JWKS_URI=$(yq e '.jwks_uri' .github/conjur/authn-config.yml)"          >> $GITHUB_ENV
+          echo "JWT_ISSUER=$(yq e '.jwt_issuer' .github/conjur/authn-config.yml)"      >> $GITHUB_ENV
+          echo "JWT_IDENTITY_PATH=$(yq e '.identity_path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "TOKEN_APP_PROPERTY=$(yq e '.token_app_property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"       >> $GITHUB_ENV
 
-          # 2) Exchange it for a Conjur session token
-          SESSION_TOKEN=$(curl -s -k \
-            --request POST \
-            "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
-            --header "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "jwt=$GIT_JWT")
-
-          # expose it for next step
-          echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
-        env:
-          CONJUR_URL: ${{ secrets.CONJUR_URL }}
-          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
-          CONJUR_SERVICE_ID: ${{ secrets.CONJUR_SERVICE_ID }}
-
-      - name: Load authenticator policy into Conjur
-        shell: bash
-        run: |
-          curl -v \
-            -H "Authorization: Token token=\"${{ steps.conjur-auth.outputs.session }}\"" \
-            -X PATCH \
-            "$CONJUR_URL/policies/conjur/policy/data/terraform" \
-            --data-binary "@.github/conjur/conjur-authn.yml"
-        env:
-          CONJUR_URL:    ${{ secrets.CONJUR_URL }}
+      # 4) Invoke your composite action to build & load the authenticator
+      - name: Create Authenticator in Conjur
+        uses: ./.github/actions/CreateAuth
+        with:
+          JWKS_URI:           ${{ env.JWKS_URI }}
+          JWT_ISSUER:         ${{ env.JWT_ISSUER }}
+          JWT_IDENTITY_PATH:  ${{ env.JWT_IDENTITY_PATH }}
+          TOKEN_APP_PROPERTY: ${{ env.TOKEN_APP_PROPERTY }}
+          AUTHENTICATOR_NAME: ${{ env.AUTHENTICATOR_NAME }}
+          SERVICE_ID:         ${{ env.SERVICE_ID }}
