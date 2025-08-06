@@ -2,28 +2,33 @@ name: "Create Conjur JWT Authenticator"
 description: "Defines a new JWT authenticator in Conjur via policy"
 
 inputs:
-  JWKS_URI:
-    description: "The JWKS endpoint URL for your JWT issuer"
+  # Conjur connection parameters
+  CONJUR_URL:
+    description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
+    required: true
+  CONJUR_ACCOUNT:
+    description: "Conjur account name"
     required: true
 
+  # Which built-in or custom authn-jwt service to use (e.g. 'github' or your custom name)
+  SERVICE_ID:
+    description: "JWT authenticator service ID"
+    required: true
+
+  # The details of your JWT issuer
   JWT_ISSUER:
-    description: "Expected `iss` claim (the JWT issuer URI)"
+    description: "Expected `iss` claim in the JWT"
     required: true
-
+  JWKS_URI:
+    description: "JWKS endpoint URL for your JWT issuer"
+    required: true
   JWT_IDENTITY_PATH:
     description: "JSONPath to the identity claim in the JWT (e.g. `$.sub`)"
     required: true
 
-  TOKEN_APP_PROPERTY:
-    description: "Logical name for this authenticator (used in the policy ID)"
-    required: true
-
+  # How to name this new authenticator in Conjur
   AUTHENTICATOR_NAME:
-    description: "Name of the new JWT authenticator (appended under `authn-jwt/`)"
-    required: true
-
-  SERVICE_ID:
-    description: "The Conjur JWT authenticator service ID"
+    description: "Name for the new JWT authenticator (under conjur/authn-jwt/…)"
     required: true
 
 runs:
@@ -33,16 +38,20 @@ runs:
       id: auth
       shell: bash
       env:
-        CONJUR_URL:        ${{ secrets.CONJUR_URL }}
-        CONJUR_ACCOUNT:    ${{ secrets.CONJUR_ACCOUNT }}
+        CONJUR_URL:        ${{ inputs.CONJUR_URL }}
+        CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
+        CONJUR_SERVICE_ID: ${{ inputs.SERVICE_ID }}
       run: |
+        # 1) Exchange GitHub OIDC request token for a JWT
         GIT_JWT=$(curl -s \
           -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-          "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+          "$ACTIONS_ID_TOKEN_REQUEST_URL" \
+          | jq -r .value)
 
+        # 2) Exchange that JWT for a Conjur session token
         SESSION_TOKEN=$(curl -s -k \
           --request POST \
-          "$CONJUR_URL/authn-jwt/${{ inputs.SERVICE_ID }}/$CONJUR_ACCOUNT/authenticate" \
+          "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
           --header "Content-Type: application/x-www-form-urlencoded" \
           --data-urlencode "jwt=$GIT_JWT")
 
@@ -71,11 +80,12 @@ EOF
 
     - name: Load authenticator into Conjur
       shell: bash
+      env:
+        CONJUR_URL:     ${{ inputs.CONJUR_URL }}
+        SESSION_TOKEN: ${{ steps.auth.outputs.session }}
       run: |
         curl -v \
-          -H "Authorization: Token token=\"${{ steps.auth.outputs.session }}\"" \
+          -H "Authorization: Token token=\"${SESSION_TOKEN}\"" \
           -X PATCH \
           "$CONJUR_URL/policies/conjur/policy/data/terraform" \
           --data-binary "@authenticator-policy.yml"
-      env:
-        CONJUR_URL:        ${{ secrets.CONJUR_URL }}
