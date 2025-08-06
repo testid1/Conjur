@@ -5,14 +5,14 @@ inputs:
   CONJUR_URL:
     description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
     required: true
+  
   CONJUR_ACCOUNT:
     description: "Conjur account name"
     required: true
 
-    SERVICE_ID:
+  SERVICE_ID:
     description: "JWT authenticator service ID"
     required: true
-
     
   JWT_ISSUER:
     description: "Expected `iss` claim in the JWT"
