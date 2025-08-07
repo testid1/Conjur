@@ -27,10 +27,10 @@ jobs:
       - name: Load authenticator config
         id: load-config
         run: |
-          echo "JWKS_URI=$(yq e '.jwks_uri' .github/conjur/authn-config.yml)"          >> $GITHUB_ENV
-          echo "JWT_ISSUER=$(yq e '.jwt_issuer' .github/conjur/authn-config.yml)"      >> $GITHUB_ENV
-          echo "JWT_IDENTITY_PATH=$(yq e '.identity_path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
-          echo "TOKEN_APP_PROPERTY=$(yq e '.token_app_property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "JWKS_URI=$(yq e '.jwks-uri' .github/conjur/authn-config.yml)"          >> $GITHUB_ENV
+          echo "JWT_ISSUER=$(yq e '.issuer' .github/conjur/authn-config.yml)"      >> $GITHUB_ENV
+          echo "JWT_IDENTITY_PATH=$(yq e '.identity-path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "TOKEN_APP_PROPERTY=$(yq e '.token-app-property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
           echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
           echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"       >> $GITHUB_ENV
 
