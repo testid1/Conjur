@@ -170,17 +170,16 @@ runs:
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
 
-    - name: Load policy into Conjur
+    - name: Show generated policy
       shell: bash
-      env:
-        CONJUR_URL:     ${{ inputs.CONJUR_URL }}
-        SESSION_TOKEN: ${{ steps.auth.outputs.session }}
       run: |
-        curl -v \
-          -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
-          -X PATCH \
-          "$CONJUR_URL/policies/conjur/policy/data/authn-jwt" \
-          --data-binary "@authenticator-policy.yml"
+        echo "--- authenticator-policy.yml ---"
+        cat authenticator-policy.yml
+    - name: Upload policy artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: authenticator-policy
+        path: authenticator-policy.yml
     
     - name: Load policy into Conjur
       shell: bash
