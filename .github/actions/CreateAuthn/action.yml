@@ -70,11 +70,11 @@ runs:
         echo "  body:" >> authenticator-policy.yml
         echo "    - !webservice" >> authenticator-policy.yml
         echo "    - !variable jwt-issuer" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
         echo "    - !variable jwks-url" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
         echo "    - !variable identity-path" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
         echo "    - !group apps" >> authenticator-policy.yml
         echo "    - !permit" >> authenticator-policy.yml
         echo "      role: !group apps" >> authenticator-policy.yml
