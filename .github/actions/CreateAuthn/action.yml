@@ -75,9 +75,9 @@ runs:
         echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
         echo "    - !variable identity-path" >> authenticator-policy.yml
         echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
-        echo "    - !group authenticatable" >> authenticator-policy.yml
+        echo "    - !group apps" >> authenticator-policy.yml
         echo "    - !permit" >> authenticator-policy.yml
-        echo "      role: !group authenticatable" >> authenticator-policy.yml
+        echo "      role: !group apps" >> authenticator-policy.yml
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
  
