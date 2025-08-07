@@ -97,8 +97,18 @@ runs:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
       run: |
-        curl -v \
+        set -e
+        HTTP=$(curl -k -v \
           -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
           -X PATCH \
           "$CONJUR_URL/policies/conjur/policy/data/authn-jwt" \
-          --data-binary "@authenticator-policy.yml"
+          --data-binary "@authenticator-policy.yml" \
+          --write-out "\nHTTP_STATUS:%{http_code}")
+        echo "----- raw response -----"
+        echo "$HTTP"
+        # fail the step if not 20x
+        STATUS=$(echo "$HTTP" | sed -n 's/.*HTTP_STATUS:\([0-9][0-9][0-9]\)$/\1/p')
+        if [[ "$STATUS" != 20* ]]; then
+          echo "Policy load failed with HTTP $STATUS"
+          exit 1
+        fi
