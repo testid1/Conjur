@@ -81,6 +81,16 @@ runs:
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
  
+    - name: Show generated policy
+      shell: bash
+      run: |
+        echo "--- authenticator-policy.yml ---"
+        cat authenticator-policy.yml
+    - name: Upload policy artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: authenticator-policy
+        path: authenticator-policy.yml  
     - name: Load policy into Conjur
       shell: bash
       env:
