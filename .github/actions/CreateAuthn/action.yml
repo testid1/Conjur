@@ -51,7 +51,6 @@ runs:
         echo "Session Token length: ${#SESSION_TOKEN}"
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
         echo "$SESSION_TOKEN" > session_token.txt
-        echo "Session token file written with $(wc -c < session_token.txt) bytes"
         
     - name: Upload raw jwt as an artifact
       uses: actions/upload-artifact@v4
