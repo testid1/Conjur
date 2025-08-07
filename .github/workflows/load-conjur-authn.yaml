@@ -44,4 +44,5 @@ jobs:
           JWT_ISSUER:         ${{ env.JWT_ISSUER }}
           JWKS_URI:           ${{ env.JWKS_URI }}
           JWT_IDENTITY_PATH:  ${{ env.JWT_IDENTITY_PATH }}
+          TOKEN_APP_PROPERTY: ${{ env.TOKEN_APP_PROPERTY }}
           AUTHENTICATOR_NAME: ${{ env.AUTHENTICATOR_NAME }}
