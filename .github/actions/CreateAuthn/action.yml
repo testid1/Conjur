@@ -102,7 +102,7 @@ runs:
                  -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
                  -H "Content-Type: application/x-yaml" \
                  -X PATCH \
-                 "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/data" \
+                 "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/conjur/authn-jwt" \
                  --data-binary "@authenticator-policy.yml" \
                  --write-out "\nHTTP_STATUS:%{http_code}")
         echo "----- raw response -----"
