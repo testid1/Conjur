@@ -36,7 +36,7 @@ runs:
         CONJUR_SERVICE_ID: "GitMain"
       run: |
         set -e
-#         1) Mint the GitHub OIDC JWT
+       #1) Mint the GitHub OIDC JWT
         GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
         echo "Request URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
         echo "JWT length: ${#GIT_JWT}"
@@ -46,18 +46,13 @@ runs:
         RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "RESP: $RESP"
         
-#         2) Exchange it for a Conjur session token
+       #2) Exchange it for a Conjur session token
         SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
         echo "Session Token length: ${#SESSION_TOKEN}"
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
         echo "$SESSION_TOKEN" > session_token.txt
         echo "Session token file written with $(wc -c < session_token.txt) bytes"
-    
-    - name: List and verify token file before upload
-        run: |
-          ls -l session_token.txt
-          cat session_token.txt
-    
+        
     - name: Upload raw jwt as an artifact
       uses: actions/upload-artifact@v4
       with:
