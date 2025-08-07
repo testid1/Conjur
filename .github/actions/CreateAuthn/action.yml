@@ -1,6 +1,6 @@
 name: "Create Conjur JWT Authenticator"
 description: "Defines a new JWT authenticator in Conjur via policy"
-
+ 
 inputs:
   CONJUR_URL:
     description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
@@ -23,7 +23,7 @@ inputs:
   AUTHENTICATOR_NAME:
     description: "Name for the new authenticator under conjur/authn-jwt/"
     required: true
-
+ 
 runs:
   using: "composite"
   steps:
@@ -45,25 +45,22 @@ runs:
         echo "$GIT_JWT" > id_token.txt
         RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "RESP: $RESP"
-        
         # 2) Exchange it for a Conjur session token
         SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain2/conjur/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
         echo "Session Token length: ${#SESSION_TOKEN}"
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
         echo "$SESSION_TOKEN" > session_token.txt
-        
     - name: Upload raw jwt as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: raw-jwt
         path: id_token.txt
-
+ 
     - name: Upload raw session token as an artifact
       uses: actions/upload-artifact@v4
       with:
         name: raw-session
         path: session_token.txt
-    
     - name: Build authenticator policy file
       shell: bash
       run: |
@@ -83,104 +80,7 @@ runs:
         echo "      role: !group authenticatable" >> authenticator-policy.yml
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
-
-    name: "Create Conjur JWT Authenticator"
-description: "Defines a new JWT authenticator in Conjur via policy"
-
-inputs:
-  CONJUR_URL:
-    description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
-    required: true
-  CONJUR_ACCOUNT:
-    description: "Conjur account name"
-    required: true
-  SERVICE_ID:
-    description: "JWT authenticator service ID (e.g. 'github')"
-    required: true
-  JWT_ISSUER:
-    description: "Expected 'iss' claim in the JWT"
-    required: true
-  JWKS_URI:
-    description: "JWKS endpoint URL for your issuer"
-    required: true
-  JWT_IDENTITY_PATH:
-    description: "JSONPath to the identity claim (e.g. '$.sub')"
-    required: true
-  AUTHENTICATOR_NAME:
-    description: "Name for the new authenticator under conjur/authn-jwt/"
-    required: true
-
-runs:
-  using: "composite"
-  steps:
-    - name: Authenticate to Conjur via OIDC
-      id: auth
-      shell: bash
-      env:
-        CONJUR_URL:        ${{ inputs.CONJUR_URL }}
-        CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
-        CONJUR_SERVICE_ID: "GitMain"
-      run: |
-        set -e
-        # 1) Mint the GitHub OIDC JWT
-        GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
-        echo "Request URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
-        echo "JWT length: ${#GIT_JWT}"
-        echo "Git Hub Token: "
-        echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
-        echo "$GIT_JWT" > id_token.txt
-        RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
-        echo "RESP: $RESP"
-        
-        # 2) Exchange it for a Conjur session token
-        SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain2/conjur/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
-        echo "Session Token length: ${#SESSION_TOKEN}"
-        echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
-        echo "$SESSION_TOKEN" > session_token.txt
-        
-    - name: Upload raw jwt as an artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: raw-jwt
-        path: id_token.txt
-
-    - name: Upload raw session token as an artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: raw-session
-        path: session_token.txt
-    
-    - name: Build authenticator policy file
-      shell: bash
-      run: |
-        # Overwrite or create the file
-        echo "- !policy" > authenticator-policy.yml
-        echo "  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
-        echo "  body:" >> authenticator-policy.yml
-        echo "    - !webservice" >> authenticator-policy.yml
-        echo "    - !variable jwt-issuer" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
-        echo "    - !variable jwks-url" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
-        echo "    - !variable identity-path" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
-        echo "    - !group authenticatable" >> authenticator-policy.yml
-        echo "    - !permit" >> authenticator-policy.yml
-        echo "      role: !group authenticatable" >> authenticator-policy.yml
-        echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
-        echo "      resource: !webservice" >> authenticator-policy.yml
-
-    - name: Show generated policy
-      shell: bash
-      run: |
-        echo "--- authenticator-policy.yml ---"
-        cat authenticator-policy.yml
-    - name: Upload policy artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: authenticator-policy
-        path: authenticator-policy.yml
-    
+ 
     - name: Load policy into Conjur
       shell: bash
       env:
