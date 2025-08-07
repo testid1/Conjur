@@ -100,7 +100,7 @@ runs:
         set -e
         HTTP=$(curl -k -v \
           -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
-          -X PATCH \
+          -X POST \
           "$CONJUR_URL/policies/conjur/policy/data" \
           --data-binary "@authenticator-policy.yml" \
           --write-out "\nHTTP_STATUS:%{http_code}")
