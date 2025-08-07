@@ -3,5 +3,5 @@ authenticator_name: ConjurGit
 service_id: conjur/authn-jwt/ConjurGit
 jwks_uri:  https://token.actions.githubusercontent.com/.well-known/jwks
 jwt_issuer: https://token.actions.githubusercontent.com
-identity_path: data/github
+identity_path: data/myspace
 token_app_property: repository
