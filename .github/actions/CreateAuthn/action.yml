@@ -66,7 +66,7 @@ runs:
       run: |
         # Overwrite or create the file
         echo "- !policy" > authenticator-policy.yml
-        echo "  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
+        echo "  id: ${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
         echo "  body:" >> authenticator-policy.yml
         echo "    - !webservice" >> authenticator-policy.yml
         echo "    - !variable jwt-issuer" >> authenticator-policy.yml
@@ -75,9 +75,11 @@ runs:
         echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
         echo "    - !variable identity-path" >> authenticator-policy.yml
         echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
-        echo "    - !group authenticatable" >> authenticator-policy.yml
+        echo "    - !variable token-app-property" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.TOKEN_APP_PROPERTY }}\"" >> authenticator-policy.yml
+        echo "    - !group apps" >> authenticator-policy.yml
         echo "    - !permit" >> authenticator-policy.yml
-        echo "      role: !group authenticatable" >> authenticator-policy.yml
+        echo "      role: !group apps" >> authenticator-policy.yml
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
  
