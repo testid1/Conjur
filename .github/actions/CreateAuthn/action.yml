@@ -1,6 +1,6 @@
 name: "Create Conjur JWT Authenticator"
 description: "Defines a new JWT authenticator in Conjur via policy"
- 
+
 inputs:
   CONJUR_URL:
     description: "Conjur API base URL (e.g. https://your-conjur.example.com/api)"
