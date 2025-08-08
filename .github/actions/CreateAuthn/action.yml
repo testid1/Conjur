@@ -66,7 +66,7 @@ runs:
       run: |
         # Overwrite or create the file
         echo "- !policy" > authenticator-policy.yml
-        echo "  id: ${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
+        echo "  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
         echo "  body:" >> authenticator-policy.yml
         echo "    - !webservice" >> authenticator-policy.yml
         echo "    - !variable issuer" >> authenticator-policy.yml
@@ -100,7 +100,7 @@ runs:
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
       run: |
         set -e
-        HTTP=$(curl -k -v -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X PATCH "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/conjur/authn-jwt" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
+        HTTP=$(curl -k -v -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X PATCH "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/data" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "----- raw response -----"
         echo "$HTTP"
         # fail the step if not 20x
