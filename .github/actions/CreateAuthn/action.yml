@@ -66,46 +66,29 @@ runs:
       run: |
         # Overwrite or create the file
         echo "- !policy" > authenticator-policy.yml
-        echo "  id: ${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
+        echo "  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
         echo "  body:" >> authenticator-policy.yml
         echo "    - !webservice" >> authenticator-policy.yml
-        echo "    - !variable issuer" >> authenticator-policy.yml
-        echo "      value:\"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
-        echo "    - !variable jwks-uri" >> authenticator-policy.yml
-        echo "      value:\"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
+        echo "    - !variable jwt-issuer" >> authenticator-policy.yml
+        echo "      value: \"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
+        echo "    - !variable jwks-url" >> authenticator-policy.yml
+        echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
         echo "    - !variable identity-path" >> authenticator-policy.yml
-        echo "      value:\"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
-        echo "    - !variable token-app-property" >> authenticator-policy.yml
-        echo "      value:\"${{ inputs.TOKEN_APP_PROPERTY }}\"" >> authenticator-policy.yml
-        echo "    - !group apps" >> authenticator-policy.yml
+        echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
+        echo "    - !group authenticatable" >> authenticator-policy.yml
         echo "    - !permit" >> authenticator-policy.yml
-        echo "      role: !group apps" >> authenticator-policy.yml
+        echo "      role: !group authenticatable" >> authenticator-policy.yml
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
  
-    - name: Show generated policy
-      shell: bash
-      run: |
-        echo "--- authenticator-policy.yml ---"
-        cat authenticator-policy.yml
-    - name: Upload policy artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: authenticator-policy
-        path: authenticator-policy.yml  
     - name: Load policy into Conjur
       shell: bash
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
       run: |
-        set -e
-        HTTP=$(curl -k -v -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X PATCH "$CONJUR_URL/policies/conjur/policy/data/conjur/authn-jwt" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
-        echo "----- raw response -----"
-        echo "$HTTP"
-        # fail the step if not 20x
-        STATUS=$(echo "$HTTP" | sed -n 's/.*HTTP_STATUS:\([0-9][0-9][0-9]\)$/\1/p')
-        if [[ "$STATUS" != 20* ]]; then
-          echo "Policy load failed with HTTP $STATUS"
-          exit 1
-        fi
+        curl -v \
+          -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
+          -X PATCH \
+          "$CONJUR_URL/policies/conjur/policy/data/authn-jwt" \
+          --data-binary "@authenticator-policy.yml"
