@@ -99,12 +99,6 @@ runs:
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
+        CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
       run: |
-        curl -k -v \
-          -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
-          -H "Content-Type: application/x-yaml" \
-          -X PATCH \
-          "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/data" \
-          --data-binary "@authenticator-policy.yml" \
-          --write-out "\nHTTP_STATUS:%{http_code}"
-
+        curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X PATCH "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/data/authn-jwt" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}"
