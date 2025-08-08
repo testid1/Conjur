@@ -66,15 +66,15 @@ runs:
       run: |
         # Overwrite or create the file
         echo "- !policy" > authenticator-policy.yml
-        echo "  id: conjur/authn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
+        echo "  id: conjur%2Fauthn-jwt/${{ inputs.AUTHENTICATOR_NAME }}" >> authenticator-policy.yml
         echo "  body:" >> authenticator-policy.yml
         echo "    - !webservice" >> authenticator-policy.yml
         echo "    - !variable jwt-issuer" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.JWT_ISSUER }}\"" >> authenticator-policy.yml
         echo "    - !variable jwks-url" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
         echo "    - !variable identity-path" >> authenticator-policy.yml
-        echo "      value: \"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
+        echo "      value:\"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
         echo "    - !variable token-app-property" >> authenticator-policy.yml
         echo "      value:\"${{ inputs.TOKEN_APP_PROPERTY }}\"" >> authenticator-policy.yml
         echo "    - !group apps" >> authenticator-policy.yml
@@ -104,7 +104,7 @@ runs:
           -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
           -H "Content-Type: application/x-yaml" \
           -X PATCH \
-          "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/data/authn-jwt" \
+          "$CONJUR_URL/policies/${CONJUR_ACCOUNT}/policy/data" \
           --data-binary "@authenticator-policy.yml" \
           --write-out "\nHTTP_STATUS:%{http_code}"
 
