@@ -45,7 +45,7 @@ jobs:
           - !permit
             role: !host data/myspace/testid1/ConjurGitHost
             privileges: [read, execute]
-            resource: *secrets
+            resource: !variable db/password
           EOF
 
       # 3) PATCH it into Conjur under the data branch
