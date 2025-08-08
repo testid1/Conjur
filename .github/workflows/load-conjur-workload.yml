@@ -36,12 +36,11 @@ jobs:
         run: |
           cat > hosts.yaml <<EOF
           - !host
-            id: data/myspace/testid1/ConjurGitHost
+            id: testid1/ConjurGitHost
             annotations:
               authn-jwt/ConjurGit2/repository: "testid1/Conjur"
-
-          - &secrets
-            - !variable id: data/vault/conjurtest/conjurtest/password
+          - !variable
+            id: db/password
             
           - !permit
             role: !host data/myspace/testid1/ConjurGitHost
