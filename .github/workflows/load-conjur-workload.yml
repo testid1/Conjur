@@ -1,15 +1,15 @@
 name: Load Conjur Workload
-
+ 
 on:
   workflow_dispatch:
-
+ 
 jobs:
   load-host:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+ 
       # 1) Mint GitHub OIDC JWT & get Conjur session token
       - name: Authenticate to Conjur via OIDC
         id: auth
@@ -17,20 +17,20 @@ jobs:
         run: |
           set -e
           GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                        "$ACTIONS_ID_TOKEN_REQUEST_URL" \
-                    | jq -r .value)
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" \
+            | jq -r .value)
           echo "jwt=$GIT_JWT" >> $GITHUB_OUTPUT
-
+ 
           SESSION=$(curl -s -k -X POST \
             "$CONJUR_URL/authn-jwt/$SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
             -H "Content-Type: application/x-www-form-urlencoded" \
             --data-urlencode "jwt=$GIT_JWT")
           echo "session=$SESSION" >> $GITHUB_OUTPUT
         env:
-          CONJUR_URL:        ${{ secrets.CONJUR_URL }}
-          CONJUR_ACCOUNT:    ${{ secrets.CONJUR_ACCOUNT }}
-          SERVICE_ID:        ${{ secrets.SERVICE_ID }}
-
+          CONJUR_URL: ${{ secrets.CONJUR_URL }}
+          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
+          SERVICE_ID: ${{ secrets.SERVICE_ID }}
+ 
       # 2) Render your workload-policy (hosts.yaml)
       - name: Build workload policy file
         run: |
@@ -39,15 +39,16 @@ jobs:
             id: testid1/ConjurGitHost
             annotations:
               authn-jwt/ConjurGit2/repository: "testid1/Conjur"
+ 
           - !variable
             id: db/password
-            
+ 
           - !permit
             role: !host data/myspace/testid1/ConjurGitHost
             privileges: [read, execute]
             resource: !variable db/password
           EOF
-
+ 
       # 3) PATCH it into Conjur under the data branch
       - name: Load workload into Conjur
         run: |
@@ -59,5 +60,5 @@ jobs:
             --data-binary "@hosts.yaml" \
             --write-out "\nHTTP_STATUS:%{http_code}"
         env:
-          CONJUR_URL:     ${{ secrets.CONJUR_URL }}
+          CONJUR_URL: ${{ secrets.CONJUR_URL }}
           CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
