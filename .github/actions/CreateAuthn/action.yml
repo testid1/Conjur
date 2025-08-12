@@ -46,12 +46,7 @@ runs:
         RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "RESP: $RESP"
         # 2) Exchange it for a Conjur session token
-        SESSION_TOKEN=$(curl -s -k \
-        --request POST \
-        "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
-        --header "Content-Type: application/x-www-form-urlencoded" \
-        --data-urlencode "jwt=$GIT_JWT" \
-        | base64 | tr -d '\r\n')
+        SESSION_TOKEN=$( SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain2/conjur/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT"))
         
         echo "Session Token length: ${#SESSION_TOKEN}"
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
