@@ -53,7 +53,8 @@ runs:
           --request POST \
           "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
           --header "Content-Type: application/x-www-form-urlencoded" \
-          --data-urlencode "jwt=$GIT_JWT")
+          --data-urlencode "jwt=$GIT_JWT"
+          --output session_token.txt)
 
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
 
