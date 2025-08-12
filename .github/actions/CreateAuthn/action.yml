@@ -50,11 +50,12 @@ runs:
 
         # 2) Exchange that JWT for a Conjur session token
         SESSION_TOKEN=$(curl -s -k \
-          --request POST \
-          "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
-          --header "Content-Type: application/x-www-form-urlencoded" \
-          --data-urlencode "jwt=$GIT_JWT"
-          --output session_token.txt)
+        --request POST \
+        "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
+        --header "Content-Type: application/x-www-form-urlencoded" \
+        --data-urlencode "jwt=$GIT_JWT" \
+        | base64 | tr -d '\r\n')
+
 
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
 
