@@ -1,5 +1,4 @@
 name: Load Conjur Authenticator Policy
-
 on:
   workflow_dispatch:
 
