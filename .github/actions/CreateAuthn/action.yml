@@ -101,4 +101,4 @@ runs:
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
         CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
       run: |
-        curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/conjur/authn-jwt" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}"
+        curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/conjur/authn-jwt/GitMain2" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}"
