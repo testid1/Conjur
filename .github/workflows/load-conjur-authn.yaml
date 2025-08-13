@@ -72,33 +72,33 @@ jobs:
           SERVICE_ID: ${{ env.SERVICE_ID }}
 
       # 6) Build workload policy file
-      - name: Build workload policy file
-        run: |
-          cat > hosts.yaml <<'EOF'
-          - !host
-            id: testid1/ConjurGitHost
-            annotations:
-              authn-jwt/ConjurGit2/repository: "testid1/Conjur"
+      # - name: Build workload policy file
+      #   run: |
+      #     cat > hosts.yaml <<'EOF'
+      #     - !host
+      #       id: testid1/ConjurGitHost
+      #       annotations:
+      #         authn-jwt/ConjurGit2/repository: "testid1/Conjur"
 
-          - !variable
-            id: db/password
+      #     - !variable
+      #       id: db/password
 
-          - !permit
-            role: !host data/myspace/testid1/ConjurGitHost
-            privileges: [read, execute]
-            resource: !variable db/password
-          EOF
+      #     - !permit
+      #       role: !host data/myspace/testid1/ConjurGitHost
+      #       privileges: [read, execute]
+      #       resource: !variable db/password
+      #     EOF
 
-      # 7) Load workload into Conjur under 'data' branch
-      - name: Load workload into Conjur
-        run: |
-          curl -k -v \
-            -H "Authorization: Token token=\"${{ steps.auth.outputs.session }}\"" \
-            -H "Content-Type: application/x-yaml" \
-            -X PATCH \
-            "$CONJUR_URL/policies/${{ secrets.CONJUR_ACCOUNT }}/policy%2Fdata" \
-            --data-binary "@hosts.yaml" \
-            --write-out "\nHTTP_STATUS:%{http_code}"
-        env:
-          CONJUR_URL: ${{ secrets.CONJUR_URL }}
-          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
+      # # 7) Load workload into Conjur under 'data' branch
+      # - name: Load workload into Conjur
+      #   run: |
+      #     curl -k -v \
+      #       -H "Authorization: Token token=\"${{ steps.auth.outputs.session }}\"" \
+      #       -H "Content-Type: application/x-yaml" \
+      #       -X PATCH \
+      #       "$CONJUR_URL/policies/${{ secrets.CONJUR_ACCOUNT }}/policy%2Fdata" \
+        #     --data-binary "@hosts.yaml" \
+        #     --write-out "\nHTTP_STATUS:%{http_code}"
+        # env:
+        #   CONJUR_URL: ${{ secrets.CONJUR_URL }}
+        #   CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
