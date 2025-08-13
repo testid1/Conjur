@@ -99,10 +99,8 @@ runs:
         echo "      value:\"${{ inputs.JWKS_URI }}\"" >> authenticator-policy.yml
         echo "    - !variable identity-path" >> authenticator-policy.yml
         echo "      value:\"${{ inputs.JWT_IDENTITY_PATH }}\"" >> authenticator-policy.yml
-        # Note: 'token-app-property' was in the original request, but it's not present in the provided policy snippet. 
-        # Adding it based on the original request, assuming it's intended.
         echo "    - !variable token-app-property" >> authenticator-policy.yml
-        echo "      value:\"${{ inputs.TOKEN_APP_PROPERTY }}\"" >> authenticator-policy.yml 
+        echo "      value:\"${{ inputs.TOKEN_APP_PROPERTY }}\"" >> authenticator-policy.yml
         echo "    - !group apps" >> authenticator-policy.yml
         echo "    - !permit" >> authenticator-policy.yml
         echo "      role: !group apps" >> authenticator-policy.yml
