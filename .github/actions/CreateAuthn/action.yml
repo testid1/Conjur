@@ -103,6 +103,30 @@ runs:
         CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
       run: |
         # curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy%2Fdata" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}"
-        SECRET=$(curl -s -k --header "Authorization: Token token=\"$SESSION_TOKEN\"" \
-         "$CONJUR_APPLIANCE_URL/secrets/$CONJUR_ACCOUNT/variable/data%2Fvault%2Fconjurtest%2Fmysecret%2Fpassword")
+        
         echo "secret fetched successfully"
+        echo "----- DEBUG: Policy Load -----"
+        echo "[DEBUG] Conjur URL: $CONJUR_URL"
+        echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
+        echo "[DEBUG] Policy File: authenticator-policy.yml"
+        echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
+        
+        HTTP_RESPONSE=$(curl -s -k --header "Authorization: Token token=\"$SESSION_TOKEN\"" \
+        "$CONJUR_APPLIANCE_URL/secrets/$CONJUR_ACCOUNT/variable/data%2Fvault%2Fconjurtest%2Fmysecret%2Fpassword")
+        
+        # Separate body and status code
+        BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
+        STATUS=$(echo "$HTTP_RESPONSE" | tail -n 1)
+        
+        echo "----- CURL RESPONSE -----"
+        echo "Status Code: $STATUS"
+        echo "Body:"
+        echo "$BODY"
+        echo "-------------------------"
+        
+        # Fail if status is not 2xx
+        if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "[ERROR] Conjur API call failed with status $STATUS"
+            exit 1
+        fi
+        
