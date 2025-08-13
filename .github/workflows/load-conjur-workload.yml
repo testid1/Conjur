@@ -56,7 +56,7 @@ jobs:
             -H "Authorization: Token token=\"${{ steps.auth.outputs.session }}\"" \
             -H "Content-Type: application/x-yaml" \
             -X PATCH \
-            "$CONJUR_URL/policies/${{ secrets.CONJUR_ACCOUNT }}/policy/data" \
+            "$CONJUR_URL/policies/${{ secrets.CONJUR_ACCOUNT }}/policy%2Fdata" \
             --data-binary "@hosts.yaml" \
             --write-out "\nHTTP_STATUS:%{http_code}"
         env:
