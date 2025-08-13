@@ -95,18 +95,18 @@ runs:
         name: authenticator-policy
         path: authenticator-policy.yml
     - name: Install Conjur CLI
-        shell: bash
-        run: |
+      shell: bash
+      run: |
           # Set GEM_HOME to a user-writable directory
-          echo "export GEM_HOME=$HOME/.gem" >> "$GITHUB_ENV"
-          echo "export PATH=$HOME/.gem/bin:$PATH" >> "$GITHUB_ENV"
-          source "$GITHUB_ENV" # Source the changes immediately for the current step
+        echo "export GEM_HOME=$HOME/.gem" >> "$GITHUB_ENV"
+        echo "export PATH=$HOME/.gem/bin:$PATH" >> "$GITHUB_ENV"
+        source "$GITHUB_ENV" # Source the changes immediately for the current step
   
           # Installing Ruby and Conjur CLI using RubyGems.
           # This assumes an Ubuntu-based runner. Adjust for other OS.
-          sudo apt-get update
-          sudo apt-get install -y ruby ruby-dev build-essential zlib1g-dev libffi-dev jq # Added 'jq' for JSON parsing
-          gem install conjur-cli
+        sudo apt-get update
+        sudo apt-get install -y ruby ruby-dev build-essential zlib1g-dev libffi-dev jq # Added 'jq' for JSON parsing
+        gem install conjur-cli
   
           # The PATH update is now handled by the GITHUB_ENV modification
           # echo "$(ruby -r rubygems -e 'puts Gem.user_dir')/bin" >> $GITHUB_PATH
