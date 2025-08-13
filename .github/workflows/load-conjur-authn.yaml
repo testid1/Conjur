@@ -1,5 +1,8 @@
-name: Load Conjur Authenticator Policy
+name: Load Conjur Authenticator and Workload
+
 on:
+  push:            # runs on any commit to any branch
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -7,33 +10,35 @@ permissions:
   contents: read
 
 jobs:
-  load-authenticator:
+  load-conjur:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout so we have the config & action code
+      # 1) Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2) Install yq for YAML parsing
-      - name: Install yq
+      # 2) Install yq and jq for YAML/JSON parsing
+      - name: Install yq & jq
         run: |
           sudo wget -O /usr/local/bin/yq \
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
+          sudo apt-get update -y
+          sudo apt-get install -y jq
 
-      # 3) Read config values into environment variables
+      # 3) Load authenticator config into env variables
       - name: Load authenticator config
         id: load-config
         run: |
-          echo "JWKS_URI=$(yq e '.jwks-uri' .github/conjur/authn-config.yml)"          >> $GITHUB_ENV
-          echo "JWT_ISSUER=$(yq e '.issuer' .github/conjur/authn-config.yml)"      >> $GITHUB_ENV
-          echo "JWT_IDENTITY_PATH=$(yq e '.identity-path' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
+          echo "JWKS_URI=$(yq e '.jwks-uri' .github/conjur/authn-config.yml)"                 >> $GITHUB_ENV
+          echo "JWT_ISSUER=$(yq e '.issuer' .github/conjur/authn-config.yml)"                 >> $GITHUB_ENV
+          echo "JWT_IDENTITY_PATH=$(yq e '.identity-path' .github/conjur/authn-config.yml)"   >> $GITHUB_ENV
           echo "TOKEN_APP_PROPERTY=$(yq e '.token-app-property' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
           echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
-          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"       >> $GITHUB_ENV
+          echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"             >> $GITHUB_ENV
 
-      # 4) Invoke the CreateAuthn composite action
+      # 4) Create Authenticator in Conjur (composite action you already have)
       - name: Create Authenticator in Conjur
         uses: ./.github/actions/CreateAuthn
         with:
@@ -45,3 +50,55 @@ jobs:
           JWT_IDENTITY_PATH:  ${{ env.JWT_IDENTITY_PATH }}
           TOKEN_APP_PROPERTY: ${{ env.TOKEN_APP_PROPERTY }}
           AUTHENTICATOR_NAME: ${{ env.AUTHENTICATOR_NAME }}
+
+      # 5) Authenticate to Conjur via GitHub OIDC
+      - name: Authenticate to Conjur via OIDC
+        id: auth
+        shell: bash
+        run: |
+          set -e
+          GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+          echo "jwt=$GIT_JWT" >> $GITHUB_OUTPUT
+
+          SESSION=$(curl -s -k -X POST \
+            "$CONJUR_URL/authn-jwt/$SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "jwt=$GIT_JWT")
+          echo "session=$SESSION" >> $GITHUB_OUTPUT
+        env:
+          CONJUR_URL: ${{ secrets.CONJUR_URL }}
+          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
+          SERVICE_ID: ${{ env.SERVICE_ID }}
+
+      # 6) Build workload policy file
+      - name: Build workload policy file
+        run: |
+          cat > hosts.yaml <<'EOF'
+          - !host
+            id: testid1/ConjurGitHost
+            annotations:
+              authn-jwt/ConjurGit2/repository: "testid1/Conjur"
+
+          - !variable
+            id: db/password
+
+          - !permit
+            role: !host data/myspace/testid1/ConjurGitHost
+            privileges: [read, execute]
+            resource: !variable db/password
+          EOF
+
+      # 7) Load workload into Conjur under 'data' branch
+      - name: Load workload into Conjur
+        run: |
+          curl -k -v \
+            -H "Authorization: Token token=\"${{ steps.auth.outputs.session }}\"" \
+            -H "Content-Type: application/x-yaml" \
+            -X PATCH \
+            "$CONJUR_URL/policies/${{ secrets.CONJUR_ACCOUNT }}/policy%2Fdata" \
+            --data-binary "@hosts.yaml" \
+            --write-out "\nHTTP_STATUS:%{http_code}"
+        env:
+          CONJUR_URL: ${{ secrets.CONJUR_URL }}
+          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
