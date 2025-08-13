@@ -51,25 +51,25 @@ jobs:
           TOKEN_APP_PROPERTY: ${{ env.TOKEN_APP_PROPERTY }}
           AUTHENTICATOR_NAME: ${{ env.AUTHENTICATOR_NAME }}
 
-      # 5) Authenticate to Conjur via GitHub OIDC
-      - name: Authenticate to Conjur via OIDC
-        id: auth
-        shell: bash
-        run: |
-          set -e
-          GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
-          echo "jwt=$GIT_JWT" >> $GITHUB_OUTPUT
+      # # 5) Authenticate to Conjur via GitHub OIDC
+      # - name: Authenticate to Conjur via OIDC
+      #   id: auth
+      #   shell: bash
+      #   run: |
+      #     set -e
+      #     GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+      #       "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+      #     echo "jwt=$GIT_JWT" >> $GITHUB_OUTPUT
 
-          SESSION=$(curl -s -k -X POST \
-            "$CONJUR_URL/authn-jwt/$SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
-            -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "jwt=$GIT_JWT")
-          echo "session=$SESSION" >> $GITHUB_OUTPUT
-        env:
-          CONJUR_URL: ${{ secrets.CONJUR_URL }}
-          CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
-          SERVICE_ID: ${{ env.SERVICE_ID }}
+      #     SESSION=$(curl -s -k -X POST \
+      #       "$CONJUR_URL/authn-jwt/$SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
+      #       -H "Content-Type: application/x-www-form-urlencoded" \
+      #       --data-urlencode "jwt=$GIT_JWT")
+      #     echo "session=$SESSION" >> $GITHUB_OUTPUT
+      #   env:
+      #     CONJUR_URL: ${{ secrets.CONJUR_URL }}
+      #     CONJUR_ACCOUNT: ${{ secrets.CONJUR_ACCOUNT }}
+      #     SERVICE_ID: ${{ env.SERVICE_ID }}
 
       # 6) Build workload policy file
       # - name: Build workload policy file
