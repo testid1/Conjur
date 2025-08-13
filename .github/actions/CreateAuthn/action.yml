@@ -9,7 +9,10 @@ inputs:
     description: "Conjur account name"
     required: true
   SERVICE_ID:
-    description: "authn-jwt service ID (e.g. 'github')"
+    description: "authn-jwt service ID (e.g., 'github')"
+    required: true
+  AUTHENTICATOR_NAME:
+    description: "Policy id for the authenticator (e.g., conjur/authn-jwt/<service-id>)"
     required: true
   JWT_ISSUER:
     description: "Expected 'iss' claim in the JWT"
@@ -18,60 +21,60 @@ inputs:
     description: "JWKS endpoint URL for your issuer"
     required: true
   JWT_IDENTITY_PATH:
-    description: "JSONPath to the identity claim (e.g. '$.sub')"
+    description: "JSONPath to the identity claim (e.g., '$.sub')"
     required: true
   TOKEN_APP_PROPERTY:
-    description: "Optional token app property claim key"
+    description: "Optional token app property claim key (leave blank if unused)"
     required: false
     default: ""
-  AUTHENTICATOR_NAME:
-    description: "Policy id for the authenticator (e.g. conjur/authn-jwt/<service-id>)"
-    required: true
+  POLICY_BRANCH_ID:
+    description: "Policy branch to load into (usually 'root' for authn-jwt)"
+    required: false
+    default: "root"
 
 runs:
   using: "composite"
   steps:
+    - name: Install jq (for OIDC parsing)
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update -y
+        sudo apt-get install -y jq
+
     - name: Authenticate to Conjur via OIDC (get session token)
       id: auth
       shell: bash
       env:
-        CONJUR_URL:      ${{ inputs.CONJUR_URL }}
-        CONJUR_ACCOUNT:  ${{ inputs.CONJUR_ACCOUNT }}
-        SERVICE_ID:      ${{ inputs.SERVICE_ID }}
+        CONJUR_URL:     ${{ inputs.CONJUR_URL }}
+        CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
+        SERVICE_ID:     ${{ inputs.SERVICE_ID }}
       run: |
         set -euo pipefail
-        # 1) Get GitHub OIDC JWT for this job
+        echo "=== OIDC → Conjur authn-jwt ==="
+        echo "[DEBUG] Conjur URL     : $CONJUR_URL"
+        echo "[DEBUG] Conjur Account : $CONJUR_ACCOUNT"
+        echo "[DEBUG] Service ID     : $SERVICE_ID"
+
+        # 1) GitHub OIDC JWT for this job
         GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
           "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
-        echo "OIDC JWT length: ${#GIT_JWT}"
+        echo "[DEBUG] OIDC JWT length: ${#GIT_JWT}"
 
-        # 2) Exchange for Conjur session token (RAW, NOT base64)
+        # 2) Exchange for RAW Conjur session token (NOT base64)
         AUTHN_URL="$CONJUR_URL/authn-jwt/$SERVICE_ID/$CONJUR_ACCOUNT/authenticate"
-        echo "authn-jwt endpoint: $AUTHN_URL"
+        echo "[DEBUG] authn-jwt endpoint: $AUTHN_URL"
+
         SESSION_TOKEN=$(curl -s -k -X POST "$AUTHN_URL" \
           -H "Content-Type: application/x-www-form-urlencoded" \
           --data-urlencode "jwt=$GIT_JWT")
-        echo "Session token bytes: ${#SESSION_TOKEN}"
+        echo "[DEBUG] Session token bytes: ${#SESSION_TOKEN}"
 
-        # 3) Write token to file for CLI (token file expects RAW token)
+        test -n "$SESSION_TOKEN" || { echo "::error::Failed to obtain Conjur session token"; exit 1; }
+
+        # Write token to file for the CLI
         printf %s "$SESSION_TOKEN" > session_token.txt
-
-        # also expose for later steps if needed
         echo "session_file=session_token.txt" >> "$GITHUB_OUTPUT"
-
-    - name: Upload raw jwt as an artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: raw-jwt
-        path: id_token.txt
-      if: ${{ always() && false }}   # disable if you don't want to store tokens
-
-    - name: Upload raw session token as an artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: raw-session
-        path: session_token.txt
-      if: ${{ always() && false }}   # disable if you don't want to store tokens
 
     - name: Build authenticator policy file
       shell: bash
@@ -92,21 +95,18 @@ runs:
       privileges: [read, authenticate]
       resource: !webservice
 YAML
-        # inject the policy id
+        # Inject the authenticator policy id
         sed -i "s|__AUTH_NAME__|${{ inputs.AUTHENTICATOR_NAME }}|g" authenticator-policy.yml
-        echo "NOTE: set variable values after load (secrets add):"
-        echo "  ${ { inputs.AUTHENTICATOR_NAME } }/jwt-issuer = ${{ inputs.JWT_ISSUER }}"
-        echo "  ${ { inputs.AUTHENTICATOR_NAME } }/jwks-url   = ${{ inputs.JWKS_URI }}"
-        echo "  ${ { inputs.AUTHENTICATOR_NAME } }/identity-path = ${{ inputs.JWT_IDENTITY_PATH }}"
-        echo "  ${ { inputs.AUTHENTICATOR_NAME } }/token-app-property = ${{ inputs.TOKEN_APP_PROPERTY }}"
 
-    - name: Show generated policy
-      shell: bash
-      run: |
-        echo "--- authenticator-policy.yml ---"
+        echo "=== Generated policy (authenticator-policy.yml) ==="
         cat authenticator-policy.yml
+        echo "NOTE: Set variable *values* after load (e.g.,"
+        echo "  '${{ inputs.AUTHENTICATOR_NAME }}/jwt-issuer' = '${{ inputs.JWT_ISSUER }}',"
+        echo "  '${{ inputs.AUTHENTICATOR_NAME }}/jwks-url'   = '${{ inputs.JWKS_URI }}',"
+        echo "  '${{ inputs.AUTHENTICATOR_NAME }}/identity-path' = '${{ inputs.JWT_IDENTITY_PATH }}',"
+        echo "  '${{ inputs.AUTHENTICATOR_NAME }}/token-app-property' = '${{ inputs.TOKEN_APP_PROPERTY }}')."
 
-    - name: Upload policy artifact
+    - name: Upload policy artifact (optional)
       uses: actions/upload-artifact@v4
       with:
         name: authenticator-policy
@@ -115,18 +115,18 @@ YAML
     - name: Load policy into Conjur via CLI (JWT session)
       shell: bash
       env:
-        CONJUR_URL:     ${{ inputs.CONJUR_URL }}
-        CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
-        POLICY_BRANCH_ID: data   # change to 'root' if you want absolute path like conjur/authn-jwt/<id>
+        CONJUR_URL:       ${{ inputs.CONJUR_URL }}
+        CONJUR_ACCOUNT:   ${{ inputs.CONJUR_ACCOUNT }}
+        POLICY_BRANCH_ID: ${{ inputs.POLICY_BRANCH_ID }}
       run: |
         set -euo pipefail
         test -f authenticator-policy.yml || { echo "::error::authenticator-policy.yml missing"; exit 2; }
         test -f session_token.txt || { echo "::error::session_token.txt missing"; exit 2; }
 
-        echo "----- DEBUG: CLI load -----"
-        echo "[DEBUG] URL     : $CONJUR_URL"
-        echo "[DEBUG] Account : $CONJUR_ACCOUNT"
-        echo "[DEBUG] Branch  : $POLICY_BRANCH_ID"
+        echo "=== Conjur CLI (docker) ==="
+        echo "[DEBUG] URL   : $CONJUR_URL"
+        echo "[DEBUG] ACC   : $CONJUR_ACCOUNT"
+        echo "[DEBUG] BRANCH: $POLICY_BRANCH_ID"
         echo "[DEBUG] Token bytes: $(wc -c < session_token.txt)"
 
         docker run --rm \
@@ -141,7 +141,9 @@ YAML
             echo "=== whoami (JWT session) ==="
             conjur whoami --authn-token-file /work/session_token.txt || true
 
-            echo "=== policy load ==="
+            echo "=== policy load (-b $POLICY_BRANCH_ID) ==="
+            # IMPORTANT: When using -b <branch>, do NOT wrap again with !policy id:<branch> in the file.
             conjur policy load -b "$POLICY_BRANCH_ID" /work/authenticator-policy.yml \
               --authn-token-file /work/session_token.txt
           '
+
