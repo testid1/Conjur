@@ -89,5 +89,5 @@ EOF
         curl -v \
           -H "Authorization: Token token=\"${SESSION_TOKEN}\"" \
           -X PATCH \
-          "$CONJUR_URL/policies/conjur/policy/data/vault" \
+          "$CONJUR_URL/policies/conjur/policy/conjur/authn-jwt" \
           --data-binary "@authenticator-policy.yml"
