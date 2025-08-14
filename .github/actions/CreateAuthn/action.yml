@@ -94,19 +94,39 @@ runs:
       with:
         name: authenticator-policy
         path: authenticator-policy.yml
-
-    - name: Load policy into Conjur
+    - name: Whoami + visibility (debug)
       shell: bash
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
-        SESSION_TOKEN: ${{ steps.auth.outputs.session }}
-        CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
+        CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
+        SESSION_TOKEN:  ${{ steps.auth.outputs.session }}
       run: |
-        echo "----- DEBUG: Secret Fetch -----"
-        echo "[DEBUG] Conjur URL: $CONJUR_URL"
-        echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
-        echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
+        set -euo pipefail
+        AUTH="Authorization: Token token=\"$SESSION_TOKEN\""
+    
+        echo "== /whoami =="
+        curl -k -sS -H "$AUTH" "$CONJUR_URL/whoami" | tee _whoami.json
+        echo
+    
+        echo "== search policies containing 'data' =="
+        curl -k -sS -H "$AUTH" \
+          "$CONJUR_URL/resources/$CONJUR_ACCOUNT?kind=policy&search=data" \
+          | tee _resources.json
+        echo
 
-        HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X  GET "$CONJUR_URL/resources/$CONJUR_ACCOUNT?kind=policy&search=data" --write-out "\nHTTP_STATUS:%{http_code}")
 
-        echo "$HTTP_RESPONSE"
+    # - name: Load policy into Conjur
+    #   shell: bash
+    #   env:
+    #     CONJUR_URL:     ${{ inputs.CONJUR_URL }}
+    #     SESSION_TOKEN: ${{ steps.auth.outputs.session }}
+    #     CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
+    #   run: |
+    #     echo "----- DEBUG: Secret Fetch -----"
+    #     echo "[DEBUG] Conjur URL: $CONJUR_URL"
+    #     echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
+    #     echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
+
+    #     HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X  GET "$CONJUR_URL/resources/$CONJUR_ACCOUNT?kind=policy&search=data" --write-out "\nHTTP_STATUS:%{http_code}")
+
+    #     echo "$HTTP_RESPONSE"
