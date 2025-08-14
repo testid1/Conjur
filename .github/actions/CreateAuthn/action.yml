@@ -95,43 +95,30 @@ runs:
         name: authenticator-policy
         path: authenticator-policy.yml
 
-      - name: Load policy into Conjur
-        shell: bash
-        env:
-          CONJUR_URL:     ${{ inputs.CONJUR_URL }}
-          SESSION_TOKEN:  ${{ steps.auth.outputs.session }}   # base64 session
-          CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
-        run: |
-          set -euo pipefail
-          echo "----- DEBUG: Policy Load -----"
-          echo "[DEBUG] Conjur URL: $CONJUR_URL"
-          echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
-          echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
-  
-          # Correct policy endpoint: /policies/<account>/policy/<branch>
-          TARGET_URL="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/data"
-  
-          # Save body to a file and capture a numeric HTTP code only
-          HTTP_STATUS=$(curl -k -sS \
-            -H "Authorization: Token token=\"$SESSION_TOKEN\"" \
-            -H "Content-Type: application/x-yaml" \
-            -X POST "$TARGET_URL" \
-            --data-binary @authenticator-policy.yml \
-            -o _resp.json -w "%{http_code}")
-  
-          echo "----- CURL RESPONSE -----"
-          echo "Status Code: $HTTP_STATUS"
-          echo "Body:"
-          cat _resp.json || true
-          echo "-------------------------"
-  
-          # Numeric comparison works because HTTP_STATUS is digits only
-          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-            case "$HTTP_STATUS" in
-              401) echo "[ERROR] 401 Unauthorized";;
-              403) echo "[ERROR] 403 Forbidden (no update on branch)";;
-              404) echo "[ERROR] 404 Not Found (branch missing/hidden or wrong URL/account)";;
-              *)   echo "[ERROR] Conjur policy uploading failed with status $HTTP_STATUS";;
-            esac
+    - name: Load policy into Conjur
+      shell: bash
+      env:
+        CONJUR_URL:     ${{ inputs.CONJUR_URL }}
+        SESSION_TOKEN: ${{ steps.auth.outputs.session }}
+        CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
+      run: |
+        echo "----- DEBUG: Secret Fetch -----"
+        echo "[DEBUG] Conjur URL: $CONJUR_URL"
+        echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
+        echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
+
+        HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy%2Fdata" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
+
+        BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
+        STATUS=$(echo "$HTTP_RESPONSE" | tail -n 1)
+
+        echo "----- CURL RESPONSE -----"
+        echo "Status Code: $STATUS"
+        echo "Body:"
+        echo "$BODY"
+        echo "-------------------------"
+
+        if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "[ERROR] Conjur policy uploading failed with status $STATUS"
             exit 1
-          fi
+        fi
