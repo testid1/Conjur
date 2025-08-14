@@ -118,7 +118,7 @@ runs:
         # 2) Check update privilege on the exact branch you intend to write to
         BRANCH_ID="data/github-ci"                # <-- change if you use another child branch
         BRANCH_ENC="${BRANCH_ID//\//%2F}"         # encode only the last path segment
-        CHECK_URL="$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&action=update"
+        CHECK_URL="$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&privilege=update"
         echo "== can I UPDATE $BRANCH_ID ? =="
         curl -k -s -H "$AUTH" "$CHECK_URL"; echo
         
