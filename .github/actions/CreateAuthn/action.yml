@@ -105,21 +105,21 @@ runs:
 
         AUTH="Authorization: Token token=\"$SESSION_TOKEN\""   # SESSION_TOKEN must be base64 session
         BRANCH_ID="data/github-ci"
-        # BRANCH_ENC="${BRANCH_ID//\//%2F}"
+        BRANCH_ENC="${BRANCH_ID//\//%2F}"
         
         echo "== /whoami =="
         curl -k -s -H "$AUTH" "$CONJUR_URL/whoami"; echo
         
         echo "== can I UPDATE $BRANCH_ID ? =="
         curl -k -s -H "$AUTH" \
-          "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ID?check=true&privilege=update"; echo
+          "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&privilege=update"; echo
         
-        TARGET="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$BRANCH_ID"
+        TARGET="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$BRANCH_ENC"
         HTTP_STATUS=$(curl -k -sS \
           -H "$AUTH" \
           -H "Content-Type: application/x-yaml" \
-          -X POST "$TARGET" \
-          --data-binary @authenticator-policy.yml \
+          -X GET "$TARGET" \
+          # --data-binary @authenticator-policy.yml \
           -o _resp.json -w "%{http_code}")
         
         echo "HTTP_STATUS:$HTTP_STATUS"
