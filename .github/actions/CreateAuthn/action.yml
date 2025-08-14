@@ -103,37 +103,28 @@ runs:
       run: |
         set -euo pipefail
 
-        echo "----- DEBUG: Secret Fetch -----"
-        echo "[DEBUG] Conjur URL: $CONJUR_URL"
-        echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
-        echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
+        AUTH="Authorization: Token token=\"$SESSION_TOKEN\""   # SESSION_TOKEN must be base64 session
+        BRANCH_ID="data/github-ci"
+        BRANCH_ENC="${BRANCH_ID//\//%2F}"
         
-        # 0) Build auth header (you forgot to set $AUTH before)
-        AUTH="Authorization: Token token=\"$SESSION_TOKEN\""
-        
-        # 1) What identity am I?
         echo "== /whoami =="
         curl -k -s -H "$AUTH" "$CONJUR_URL/whoami"; echo
         
-        # 2) Check update privilege on the exact branch you intend to write to
-        BRANCH_ID="data/github-ci"                # <-- change if you use another child branch
-        BRANCH_ENC="${BRANCH_ID//\//%2F}"         # encode only the last path segment
-        CHECK_URL="$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&privilege=update"
         echo "== can I UPDATE $BRANCH_ID ? =="
-        curl -k -s -H "$AUTH" "$CHECK_URL"; echo
+        curl -k -s -H "$AUTH" \
+          "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&privilege=update"; echo
         
-        # 3) Upload policy to the SAME branch (child branch needs %2F)
         TARGET="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$BRANCH_ENC"
         HTTP_STATUS=$(curl -k -sS \
           -H "$AUTH" \
           -H "Content-Type: application/x-yaml" \
-          -X GET "$CONJUR_URL/resources/$CONJUR_ACCOUNT?kind=policy" \
+          -X POST "$TARGET" \
+          --data-binary @authenticator-policy.yml \
           -o _resp.json -w "%{http_code}")
         
         echo "HTTP_STATUS:$HTTP_STATUS"
         cat _resp.json || true
         
-        # 4) Fail clearly on non-2xx
         if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
           echo "::error::Policy load failed (HTTP $HTTP_STATUS) to $TARGET"
           exit 1
