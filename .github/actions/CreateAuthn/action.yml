@@ -115,12 +115,7 @@ runs:
           "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&privilege=update"; echo
         
         TARGET="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$BRANCH_ENC"
-        HTTP_STATUS=$(curl -k -sS \
-          -H "$AUTH" \
-          -H "Content-Type: application/x-yaml" \
-          -X GET "$TARGET" \
-          # --data-binary @authenticator-policy.yml \
-          -o _resp.json -w "%{http_code}")
+        HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X GET "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy%2Fdata"  --write-out "\nHTTP_STATUS:%{http_code}")
         
         echo "HTTP_STATUS:$HTTP_STATUS"
         cat _resp.json || true
