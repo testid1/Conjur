@@ -127,8 +127,7 @@ runs:
         HTTP_STATUS=$(curl -k -sS \
           -H "$AUTH" \
           -H "Content-Type: application/x-yaml" \
-          -X POST "$TARGET" \
-          --data-binary @authenticator-policy.yml \
+          -X GET "$CONJUR_URL/resources/$CONJUR_ACCOUNT?kind=policy" \
           -o _resp.json -w "%{http_code}")
         
         echo "HTTP_STATUS:$HTTP_STATUS"
