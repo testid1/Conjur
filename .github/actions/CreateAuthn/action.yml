@@ -127,5 +127,8 @@ runs:
         echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
         echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
 
+        curl -k -s -H "$AUTH" \
+        "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/data%2Fgithub-ci?check=true&action=update"; echo
+
         HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/data%2Fgithub-ci" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "$HTTP_RESPONSE"
