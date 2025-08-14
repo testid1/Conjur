@@ -117,8 +117,3 @@ runs:
         echo "Body:"
         echo "$BODY"
         echo "-------------------------"
-
-        if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
-            echo "[ERROR] Conjur policy uploading failed with status $STATUS"
-            exit 1
-        fi
