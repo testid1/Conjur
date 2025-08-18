@@ -33,7 +33,7 @@ runs:
       env:
         CONJUR_URL:        ${{ inputs.CONJUR_URL }}
         CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
-        CONJUR_SERVICE_ID: ConjurGit2
+        CONJUR_SERVICE_ID: ${{ inputs.CONJUR_SERVICE_ID }}
       run: |
         set -e
         # 1) Mint the GitHub OIDC JWT
@@ -43,10 +43,10 @@ runs:
         echo "Git Hub Token: "
         echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
         echo "$GIT_JWT" > id_token.txt
-        RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/ConjurGit2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
+        RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "RESP: $RESP"
         # 2) Exchange it for a Conjur session token
-        SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/ConjurGit2/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
+        SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
 
         echo "Session Token length: ${#SESSION_TOKEN}"
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
@@ -94,38 +94,31 @@ runs:
       with:
         name: authenticator-policy
         path: authenticator-policy.yml
-    - name: Whoami + visibility (debug)
+
+    - name: Load policy into Conjur
       shell: bash
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
-        CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
-        SESSION_TOKEN:  ${{ steps.auth.outputs.session }}
+        SESSION_TOKEN: ${{ steps.auth.outputs.session }}
+        CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
       run: |
-        set -euo pipefail
+        echo "----- DEBUG: Secret Fetch -----"
+        echo "[DEBUG] Conjur URL: $CONJUR_URL"
+        echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
+        echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
 
-        AUTH="Authorization: Token token=\"$SESSION_TOKEN\""   # SESSION_TOKEN must be base64 session
-        BRANCH_ID="data/github-ci"
-        BRANCH_ENC="${BRANCH_ID//\//%2F}"
-        
-        echo "== /whoami =="
-        curl -k -s -H "$AUTH" "$CONJUR_URL/whoami"; echo
-        
-        echo "== can I UPDATE $BRANCH_ID ? =="
-        curl -k -s -H "$AUTH" \
-          "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$BRANCH_ENC?check=true&privilege=update"; echo
-        
-        TARGET="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$BRANCH_ENC"
-        HTTP_STATUS=$(curl -k -sS \
-          -H "$AUTH" \
-          -H "Content-Type: application/x-yaml" \
-          -X POST "$TARGET" \
-          --data-binary @authenticator-policy.yml \
-          -o _resp.json -w "%{http_code}")
-        
-        echo "HTTP_STATUS:$HTTP_STATUS"
-        cat _resp.json || true
-        
-        if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
-          echo "::error::Policy load failed (HTTP $HTTP_STATUS) to $TARGET"
-          exit 1
+        HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy%2Fdata" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
+
+        BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
+        STATUS=$(echo "$HTTP_RESPONSE" | tail -n 1)
+
+        echo "----- CURL RESPONSE -----"
+        echo "Status Code: $STATUS"
+        echo "Body:"
+        echo "$BODY"
+        echo "-------------------------"
+
+        if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "[ERROR] Conjur policy uploading failed with status $STATUS"
+            exit 1
         fi
