@@ -102,7 +102,7 @@ runs:
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
         CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
       run: |
-        BRANCH="conjur/authn-jwt"
+        BRANCH="data"
         ENC_BRANCH="${BRANCH//\//%2F}"
         AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
         
