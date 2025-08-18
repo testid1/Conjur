@@ -132,3 +132,4 @@ runs:
           "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH?check=true&privilege=update")
         echo "HTTP $PRIV_STATUS"
         cat priv.json; echo
+        HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/data%2Fgithub-ci" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
