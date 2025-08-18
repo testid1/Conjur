@@ -102,23 +102,27 @@ runs:
         SESSION_TOKEN: ${{ steps.auth.outputs.session }}
         CONJUR_ACCOUNT:    ${{ inputs.CONJUR_ACCOUNT }}
       run: |
-        echo "----- DEBUG: Secret Fetch -----"
-        echo "[DEBUG] Conjur URL: $CONJUR_URL"
-        echo "[DEBUG] Conjur Account: $CONJUR_ACCOUNT"
-        echo "[DEBUG] Session Token length: ${#SESSION_TOKEN}"
-
-        HTTP_RESPONSE=$(curl -k -H "Authorization: Token token=\"$SESSION_TOKEN\"" -H "Content-Type: application/x-yaml" -X POST "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/data%2Fgithub-ci" --data-binary "@authenticator-policy.yml" --write-out "\nHTTP_STATUS:%{http_code}")
-
-        BODY=$(echo "$HTTP_RESPONSE" | head -n -1)
-        STATUS=$(echo "$HTTP_RESPONSE" | tail -n 1)
-
-        echo "----- CURL RESPONSE -----"
-        echo "Status Code: $STATUS"
-        echo "Body:"
-        echo "$BODY"
-        echo "-------------------------"
-
-        if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
-            echo "[ERROR] Conjur policy uploading failed with status $STATUS"
-            exit 1
-        fi
+        BRANCH="data/github-ci"
+        ENC_BRANCH="${BRANCH//\//%2F}"
+        AUTH_HEADER="Authorization: Token token=\"$SESSION_B64\""
+        
+        echo "=== 1) /whoami check ==="
+        WHOAMI_STATUS=$(curl -k -sS -o whoami.json -w "%{http_code}" \
+          -H "$AUTH_HEADER" \
+          "$CONJUR_API_URL/whoami")
+        echo "HTTP $WHOAMI_STATUS"
+        cat whoami.json; echo
+        
+        echo "=== 2) Policy branch HEAD check ($BRANCH) ==="
+        POLICY_URL="$CONJUR_API_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH"
+        POLICY_STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
+          -H "$AUTH_HEADER" \
+          -I "$POLICY_URL")
+        echo "HTTP $POLICY_STATUS ($POLICY_URL)"
+        
+        echo "=== 3) Privilege check: update on $BRANCH ==="
+        PRIV_STATUS=$(curl -k -sS -o priv.json -w "%{http_code}" \
+          -H "$AUTH_HEADER" \
+          "$CONJUR_API_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH?check=true&privilege=update")
+        echo "HTTP $PRIV_STATUS"
+        cat priv.json; echo
