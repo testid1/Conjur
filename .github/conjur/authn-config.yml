@@ -1,5 +1,5 @@
 # .github/conjur/authn-config.yml
-authenticator_name: github-ci
+authenticator_name: github
 service_id: conjur/authn-jwt/ConjurGit2
 jwks-uri:  https://token.actions.githubusercontent.com/.well-known/jwks
 issuer: https://token.actions.githubusercontent.com
