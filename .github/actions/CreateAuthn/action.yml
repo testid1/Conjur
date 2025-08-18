@@ -129,7 +129,7 @@ runs:
         echo "=== PATCH $POLICY_FILE -> $TARGET ==="
         LOAD_STATUS=$(curl -k -sS -o _resp.json -w "%{http_code}" \
           -H "$AUTH_HEADER" -H "Content-Type: application/x-yaml" \
-          -X POST "$TARGET" \
+          -X PATCH "$TARGET" \
           --data-binary "@authenticator-policy.yml")
         echo "HTTP $LOAD_STATUS"
         cat _resp.json || true
