@@ -104,17 +104,17 @@ runs:
       run: |
         BRANCH="data/github-ci"
         ENC_BRANCH="${BRANCH//\//%2F}"
-        AUTH_HEADER="Authorization: Token token=\"$SESSION_B64\""
+        AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
         
         echo "=== 1) /whoami check ==="
         WHOAMI_STATUS=$(curl -k -sS -o whoami.json -w "%{http_code}" \
           -H "$AUTH_HEADER" \
-          "$CONJUR_API_URL/whoami")
+          "$CONJUR_URL/whoami")
         echo "HTTP $WHOAMI_STATUS"
         cat whoami.json; echo
         
         echo "=== 2) Policy branch HEAD check ($BRANCH) ==="
-        POLICY_URL="$CONJUR_API_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH"
+        POLICY_URL="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH"
         POLICY_STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
           -H "$AUTH_HEADER" \
           -I "$POLICY_URL")
@@ -123,6 +123,6 @@ runs:
         echo "=== 3) Privilege check: update on $BRANCH ==="
         PRIV_STATUS=$(curl -k -sS -o priv.json -w "%{http_code}" \
           -H "$AUTH_HEADER" \
-          "$CONJUR_API_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH?check=true&privilege=update")
+          "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH?check=true&privilege=update")
         echo "HTTP $PRIV_STATUS"
         cat priv.json; echo
