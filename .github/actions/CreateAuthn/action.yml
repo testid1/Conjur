@@ -106,7 +106,7 @@ runs:
         ENC_BRANCH="${BRANCH//\//%2F}"
         AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
         
-        echo "=== 1) /whoami check ==="
+        echo "===/whoami check ==="
         WHOAMI_STATUS=$(curl -k -sS -o whoami.json -w "%{http_code}" \
           -H "$AUTH_HEADER" \
           "$CONJUR_URL/whoami")
@@ -118,15 +118,8 @@ runs:
         "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH")
         echo "HTTP $RES_STATUS"
         cat res.json; echo
-          
-        echo "=== 2) Policy branch HEAD check ($BRANCH) ==="
-        POLICY_URL="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH"
-        POLICY_STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
-          -H "$AUTH_HEADER" \
-          -I "$POLICY_URL")
-        echo "HTTP $POLICY_STATUS ($POLICY_URL)"
         
-        echo "=== 3) Privilege check: update on $BRANCH ==="
+        echo "=== Privilege check: update on $BRANCH ==="
         PRIV_STATUS=$(curl -k -sS -o priv.json -w "%{http_code}" \
           -H "$AUTH_HEADER" \
           "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH?check=true&privilege=update")
