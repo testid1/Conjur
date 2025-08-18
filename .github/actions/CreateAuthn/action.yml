@@ -137,7 +137,7 @@ runs:
         LOAD_STATUS=$(curl -k -sS -o _resp.json -w "%{http_code}" \
           -H "$AUTH_HEADER" -H "Content-Type: application/x-yaml" \
           -X PATCH "$TARGET" \
-          --data-binary @"$authenticator-policy.yml")
+          --data-binary "@authenticator-policy.yml")
         echo "HTTP $LOAD_STATUS"
         cat _resp.json || true
         echo
