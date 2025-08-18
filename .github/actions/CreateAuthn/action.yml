@@ -43,10 +43,10 @@ runs:
         echo "Git Hub Token: "
         echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
         echo "$GIT_JWT" > id_token.txt
-        RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
+        RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain3/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
         echo "RESP: $RESP"
         # 2) Exchange it for a Conjur session token
-        SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
+        SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain3/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
 
         echo "Session Token length: ${#SESSION_TOKEN}"
         echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
