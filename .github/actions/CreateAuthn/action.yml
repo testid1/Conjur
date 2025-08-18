@@ -112,7 +112,13 @@ runs:
           "$CONJUR_URL/whoami")
         echo "HTTP $WHOAMI_STATUS"
         cat whoami.json; echo
-        
+
+        RES_STATUS=$(curl -k -sS -o res.json -w "%{http_code}" \
+        -H "$AUTH_HEADER" \
+        "$CONJUR_URL/resources/$CONJUR_ACCOUNT/policy/$ENC_BRANCH")
+        echo "HTTP $RES_STATUS"
+        cat res.json; echo
+          
         echo "=== 2) Policy branch HEAD check ($BRANCH) ==="
         POLICY_URL="$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH"
         POLICY_STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
