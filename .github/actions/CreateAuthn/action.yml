@@ -153,10 +153,10 @@ runs:
           body:
             - !host ${HOST_ID}
               annotations:
-                authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}: "${CLAIM_VALUE}"
+                authn-jwt/GitMain2/${TOKEN_APP_PROPERTY}: "${CLAIM_VALUE}"
         
             - !grant
-              role: !group conjur/authn-jwt/${SERVICE_ID}/apps
+              role: !group conjur/authn-jwt/GitMain2/apps
               member: !host ${NAMESPACE}/${HOST_ID}
         
             - !variable app/db/password
