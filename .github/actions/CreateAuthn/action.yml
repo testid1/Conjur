@@ -1,4 +1,3 @@
-
 name: "Create Conjur JWT Authenticator"
 description: "Defines a new JWT authenticator in Conjur via policy"
 
@@ -84,7 +83,7 @@ runs:
         echo "      role: !group apps" >> authenticator-policy.yml
         echo "      privileges: [read, authenticate]" >> authenticator-policy.yml
         echo "      resource: !webservice" >> authenticator-policy.yml
-
+    
     - name: Show generated policy
       shell: bash
       run: |
@@ -95,7 +94,7 @@ runs:
       with:
         name: authenticator-policy
         path: authenticator-policy.yml
-
+    
     - name: Load policy into Conjur
       shell: bash
       env:
@@ -135,3 +134,61 @@ runs:
         echo "HTTP $LOAD_STATUS"
         cat _resp.json || true
         echo
+            
+    - name: Build workload policy file
+      shell: bash
+      run: |
+        # Build a minimal workload under the same namespace/branch you already use
+        # Host will authenticate via JWT claim mapped by token-app-property (e.g., 'repository')
+        # Variable lives under the same 'data/github-ci' policy tree.
+        SERVICE_ID="${{ inputs.SERVICE_ID }}"
+        TOKEN_APP_PROPERTY="${{ inputs.TOKEN_APP_PROPERTY }}"
+        NAMESPACE="data/github-ci"
+        HOST_ID="ConjurGitHost"
+        CLAIM_VALUE="${GITHUB_REPOSITORY}"   # owner/repo from the workflow context
+
+        cat > workload-policy.yml <<EOF
+      - !policy
+        id: ${NAMESPACE}
+        body:
+          - !host ${HOST_ID}
+            annotations:
+              authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}: "${CLAIM_VALUE}"
+      
+          - !grant
+            role: !group conjur/authn-jwt/${SERVICE_ID}/apps
+            member: !host ${NAMESPACE}/${HOST_ID}
+      
+          - !variable app/db/password
+      
+          - !permit
+            role: !host ${NAMESPACE}/${HOST_ID}
+            privileges: [ read, execute ]
+            resource: !variable app/db/password
+      EOF
+
+    - name: Show generated workload policy
+      shell: bash
+      run: |
+        echo "--- workload-policy.yml ---"
+        cat workload-policy.yml
+
+    - name: Load workload policy into Conjur
+      shell: bash
+      env:
+        CONJUR_URL:     ${{ inputs.CONJUR_URL }}
+        SESSION_TOKEN:  ${{ steps.auth.outputs.session }}   # reuse existing token
+        CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
+      run: |
+        BRANCH="data/github-ci"
+        ENC_BRANCH="${BRANCH//\//%2F}"
+        AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
+
+        echo "=== PATCH workload policy -> $CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH ==="
+        LOAD_STATUS=$(curl -k -sS -o _resp_workload.json -w "%{http_code}" \
+          -H "$AUTH_HEADER" -H "Content-Type: application/x-yaml" \
+          -X PATCH "$CONJUR_URL/policies/$CONJUR_ACCOUNT/policy/$ENC_BRANCH" \
+          --data-binary "@workload-policy.yml")
+        echo "HTTP $LOAD_STATUS"
+        cat _resp_workload.json || true
+
