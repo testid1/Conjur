@@ -148,24 +148,24 @@ runs:
         CLAIM_VALUE="${GITHUB_REPOSITORY}"   # owner/repo from the workflow context
 
         cat > workload-policy.yml <<EOF
-      - !policy
-        id: ${NAMESPACE}
-        body:
-          - !host ${HOST_ID}
-            annotations:
-              authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}: "${CLAIM_VALUE}"
-      
-          - !grant
-            role: !group conjur/authn-jwt/${SERVICE_ID}/apps
-            member: !host ${NAMESPACE}/${HOST_ID}
-      
-          - !variable app/db/password
-      
-          - !permit
-            role: !host ${NAMESPACE}/${HOST_ID}
-            privileges: [ read, execute ]
-            resource: !variable app/db/password
-      EOF
+        - !policy
+          id: ${NAMESPACE}
+          body:
+            - !host ${HOST_ID}
+              annotations:
+                authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}: "${CLAIM_VALUE}"
+        
+            - !grant
+              role: !group conjur/authn-jwt/${SERVICE_ID}/apps
+              member: !host ${NAMESPACE}/${HOST_ID}
+        
+            - !variable app/db/password
+        
+            - !permit
+              role: !host ${NAMESPACE}/${HOST_ID}
+              privileges: [ read, execute ]
+              resource: !variable app/db/password
+        EOF
 
     - name: Show generated workload policy
       shell: bash
