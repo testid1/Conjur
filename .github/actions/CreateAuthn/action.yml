@@ -138,9 +138,7 @@ runs:
     - name: Build workload policy file
       shell: bash
       run: |
-        # Build a minimal workload under the same namespace/branch you already use
-        # Host will authenticate via JWT claim mapped by token-app-property (e.g., 'repository')
-        # Variable lives under the same 'data/github-ci' policy tree.
+        
         SERVICE_ID="${{ inputs.SERVICE_ID }}"
         TOKEN_APP_PROPERTY="${{ inputs.TOKEN_APP_PROPERTY }}"
         NAMESPACE="data/github-ci"
