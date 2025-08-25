@@ -147,9 +147,6 @@ runs:
         HOST_ID="ConjurGitHost"
         CLAIM_VALUE="${GITHUB_REPOSITORY}"   # owner/repo from the workflow context
 
-        echo "- !policy" > workload-policy.yml
-        echo "  id: ${NAMESPACE}" >> workload-policy.yml
-        echo "  body:" >> workload-policy.yml
 
         # Host with JWT annotation (note: key is quoted because it has /)
         echo "    - !host ${HOST_ID}" >> workload-policy.yml
@@ -159,14 +156,14 @@ runs:
         # Grant host into authenticator apps group so it can authenticate
         # echo "    - !grant" >> workload-policy.yml
         # echo "      role: !group conjur/authn-jwt/${SERVICE_ID}/apps" >> workload-policy.yml
-        # echo "      member: !host ${NAMESPACE}/${HOST_ID}" >> workload-policy.yml
+        # echo "      member: !host ${HOST_ID}" >> workload-policy.yml
 
         # Example variable
         echo "    - !variable app/db/password" >> workload-policy.yml
 
         # Permit host to read/execute that variable
         echo "    - !permit" >> workload-policy.yml
-        echo "      role: !host ${NAMESPACE}/${HOST_ID}" >> workload-policy.yml
+        echo "      role: !host ${HOST_ID}" >> workload-policy.yml
         echo "      privileges: [ read, execute ]" >> workload-policy.yml
         echo "      resource: !variable app/db/password" >> workload-policy.yml
 
