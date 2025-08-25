@@ -147,25 +147,31 @@ runs:
         HOST_ID="ConjurGitHost"
         CLAIM_VALUE="${GITHUB_REPOSITORY}"   # owner/repo from the workflow context
 
-        cat > workload-policy.yml <<EOF
-        - !policy
-          id: ${NAMESPACE}
-          body:
-            - !host ${HOST_ID}
-              annotations:
-                "authn-jwt/GitMain2/${TOKEN_APP_PROPERTY}": "${CLAIM_VALUE}"
-        
-            - !grant
-              role: !group conjur/authn-jwt/GitMain2/apps
-              member: !host ${NAMESPACE}/${HOST_ID}
-        
-            - !variable app/db/password
-        
-            - !permit
-              role: !host ${NAMESPACE}/${HOST_ID}
-              privileges: [ read, execute ]
-              resource: !variable app/db/password
-        EOF
+        echo "- !policy" > workload-policy.yml
+        echo "  id: ${NAMESPACE}" >> workload-policy.yml
+        echo "  body:" >> workload-policy.yml
+
+        # Host with JWT annotation (note: key is quoted because it has /)
+        echo "    - !host ${HOST_ID}" >> workload-policy.yml
+        echo "      annotations:" >> workload-policy.yml
+        echo "        \"authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}\": \"${CLAIM_VALUE}\"" >> workload-policy.yml
+
+        # Grant host into authenticator apps group so it can authenticate
+        echo "    - !grant" >> workload-policy.yml
+        echo "      role: !group conjur/authn-jwt/${SERVICE_ID}/apps" >> workload-policy.yml
+        echo "      member: !host ${NAMESPACE}/${HOST_ID}" >> workload-policy.yml
+
+        # Example variable
+        echo "    - !variable app/db/password" >> workload-policy.yml
+
+        # Permit host to read/execute that variable
+        echo "    - !permit" >> workload-policy.yml
+        echo "      role: !host ${NAMESPACE}/${HOST_ID}" >> workload-policy.yml
+        echo "      privileges: [ read, execute ]" >> workload-policy.yml
+        echo "      resource: !variable app/db/password" >> workload-policy.yml
+
+        echo '--- workload-policy.yml ---'
+        cat workload-policy.yml
 
     - name: Show generated workload policy
       shell: bash
