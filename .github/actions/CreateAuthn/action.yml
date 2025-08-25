@@ -157,9 +157,9 @@ runs:
         # echo "        \"authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}\": \"${CLAIM_VALUE}\"" >> workload-policy.yml
 
         # Grant host into authenticator apps group so it can authenticate
-        echo "    - !grant" >> workload-policy.yml
-        echo "      role: !group conjur/authn-jwt/${SERVICE_ID}/apps" >> workload-policy.yml
-        echo "      member: !host ${NAMESPACE}/${HOST_ID}" >> workload-policy.yml
+        # echo "    - !grant" >> workload-policy.yml
+        # echo "      role: !group conjur/authn-jwt/${SERVICE_ID}/apps" >> workload-policy.yml
+        # echo "      member: !host ${NAMESPACE}/${HOST_ID}" >> workload-policy.yml
 
         # Example variable
         echo "    - !variable app/db/password" >> workload-policy.yml
