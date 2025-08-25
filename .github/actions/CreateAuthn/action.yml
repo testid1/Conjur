@@ -153,8 +153,8 @@ runs:
 
         # Host with JWT annotation (note: key is quoted because it has /)
         echo "    - !host ${HOST_ID}" >> workload-policy.yml
-        echo "      annotations:" >> workload-policy.yml
-        echo "        \"authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}\": \"${CLAIM_VALUE}\"" >> workload-policy.yml
+        # echo "      annotations:" >> workload-policy.yml
+        # echo "        \"authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}\": \"${CLAIM_VALUE}\"" >> workload-policy.yml
 
         # Grant host into authenticator apps group so it can authenticate
         echo "    - !grant" >> workload-policy.yml
