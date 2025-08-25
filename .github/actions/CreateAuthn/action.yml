@@ -148,7 +148,7 @@ runs:
         CLAIM_VALUE="${GITHUB_REPOSITORY}"   # owner/repo from the workflow context
 
 
-        # Host with JWT annotation (note: key is quoted because it has /)
+        # Host
         echo "    - !host ${HOST_ID}" >> workload-policy.yml
         # echo "      annotations:" >> workload-policy.yml
         # echo "        \"authn-jwt/${SERVICE_ID}/${TOKEN_APP_PROPERTY}\": \"${CLAIM_VALUE}\"" >> workload-policy.yml
