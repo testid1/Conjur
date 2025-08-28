@@ -159,6 +159,11 @@ runs:
         echo "      privileges: [ read, execute ]" >> workload-policy.yml
         echo "      resource: !variable app/db/password" >> workload-policy.yml
 
+        # second permit for data/myspace/testid1/Conjur
+        echo "    - !permit" >> workload-policy.yml
+        echo "      role: !host data/myspace/testid1/Conjur" >> workload-policy.yml
+        echo "      privileges: [ read, execute ]" >> workload-policy.yml
+        echo "      resource: !variable app/db/password" >> workload-policy.yml
         echo '--- workload-policy.yml ---'
         cat workload-policy.yml
 
