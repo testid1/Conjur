@@ -197,15 +197,15 @@ runs:
         # SECRET_VALUE: "super-secret-value"                # or hardcode for testing only
       run: |
         set -euo pipefail
-        VAR_ID="data/github-ci/app/db/password"            # full id (because you patch under data/github-ci)
-        ENC_VAR_ID="${VAR_ID//\//%2F}"                     # URL-encode slashes
+        # VAR_ID="data/github-ci/app/db/password"            # full id (because you patch under data/github-ci)
+        # ENC_VAR_ID="${VAR_ID//\//%2F}"                     # URL-encode slashes
         AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
 
         # POST the secret value (no logging of the value)
         STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
           -H "$AUTH_HEADER" \
           -H "Content-Type: text/plain" \
-          -X POST "$CONJUR_URL/secrets/$CONJUR_ACCOUNT/variable/$ENC_VAR_ID" \
+          -X POST "$CONJUR_URL/secrets/$CONJUR_ACCOUNT/variable%2Fdata%2Fgithub-ci%2FConjurGitHost" \
           --data-raw "$SECRET_VALUE")
 
         echo "Set secret -> HTTP $STATUS"
