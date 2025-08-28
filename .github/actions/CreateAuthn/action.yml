@@ -190,17 +190,16 @@ runs:
       env:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
         CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
-        SESSION_TOKEN:  ${{ steps.auth.outputs.session }}   # reuse existing token
-        # Choose ONE of these and delete the other:
-        SECRET_VALUE:   TestPassword          # preferred: from GitHub Secrets
-        # SECRET_VALUE: "super-secret-value"                # or hardcode for testing only
+        SESSION_TOKEN:  ${{ steps.auth.outputs.session }}   
+        SECRET_VALUE:   TestPassword        
+       
       run: |
         set -euo pipefail
         # VAR_ID="data/github-ci/app/db/password"           
         # ENC_VAR_ID="${VAR_ID//\//%2F}"                     # URL-encode slashes
         AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
 
-        # POST the secret value (no logging of the value)
+        # POST the secret value
         STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
           -H "$AUTH_HEADER" \
           -H "Content-Type: text/plain" \
