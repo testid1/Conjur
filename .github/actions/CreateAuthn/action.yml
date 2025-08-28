@@ -196,7 +196,7 @@ runs:
         # SECRET_VALUE: "super-secret-value"                # or hardcode for testing only
       run: |
         set -euo pipefail
-        # VAR_ID="data/github-ci/app/db/password"            # full id (because you patch under data/github-ci)
+        # VAR_ID="data/github-ci/app/db/password"           
         # ENC_VAR_ID="${VAR_ID//\//%2F}"                     # URL-encode slashes
         AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
 
