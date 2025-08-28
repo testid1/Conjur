@@ -205,7 +205,7 @@ runs:
         STATUS=$(curl -k -sS -o /dev/null -w "%{http_code}" \
           -H "$AUTH_HEADER" \
           -H "Content-Type: text/plain" \
-          -X POST "$CONJUR_URL/secrets/$CONJUR_ACCOUNT/variable%2Fdata%2Fgithub-ci%2FConjurGitHost" \
+          -X POST "https://pwclab.secretsmgr.cyberark.cloud/api/secrets/conjur/variable/data%2Fgithub-ci%2Fapp%2Fdb%2Fpassword" \
           --data-raw "$SECRET_VALUE")
 
         echo "Set secret -> HTTP $STATUS"
