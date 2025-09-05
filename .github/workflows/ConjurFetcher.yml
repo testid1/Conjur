@@ -10,7 +10,7 @@ jobs:
   conjur:
     runs-on: ubuntu-latest
     outputs:
-      wiz_client_secret: ${{ steps.setoutput.outputs.wiz_client_secret }}
+      secret: ${{ steps.setoutput.outputs.secret }}
  
     steps:
       - name: Checkout code
@@ -29,9 +29,9 @@ jobs:
       - name: Set Outputs
         id: setoutput
         run: |
-          echo "wiz_client_secret=$WIZ_PASSWORD" >> $GITHUB_OUTPUT
-        env:
-          WIZ_PASSWORD: ${{ steps.fetch.outputs.wiz_password }}
+          echo "secret=$WIZ_PASSWORD" >> $GITHUB_OUTPUT
+#        env:
+#          WIZ_PASSWORD: ${{ steps.fetch.outputs.wiz_password }}
  
   consume-output:
     runs-on: ubuntu-latest
@@ -39,5 +39,5 @@ jobs:
     steps:
       - name: Print secret length
         run: |
-          secret="${{ needs.conjur.outputs.wiz_client_secret }}"
-          echo "Secret length is: ${#secret}"
+          Value="${{ needs.conjur.outputs.secret }}"
+          echo "Secret length is: ${#Value}"
