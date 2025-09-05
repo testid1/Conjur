@@ -1,0 +1,40 @@
+name: Main workflow deployment
+ 
+on:
+  workflow_dispatch: # can also use push/pull_request triggers
+ 
+jobs:
+  conjur:
+    runs-on: ubuntu-latest
+    outputs:
+      wiz_client_secret: ${{ steps.setoutput.outputs.wiz_client_secret }}
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+ 
+      - name: Fetch secrets from Conjur
+        id: fetch
+        uses: cyberark/conjur-action@v2.0.12
+        with:
+          url: ${{ secrets.CONJUR_URL }}
+          account: ${{ secrets.CONJUR_ACCOUNT }}
+          host_id: ${{ secrets.CONJUR_HOST_ID }}
+          api_key: ${{ secrets.CONJUR_API_KEY }}
+          secrets: data/vault/conjurtest/conjurtest/password|wiz_password # replace with your variable path
+ 
+      - name: Set Outputs
+        id: setoutput
+        run: |
+          echo "wiz_client_secret=$WIZ_PASSWORD" >> $GITHUB_OUTPUT
+        env:
+          WIZ_PASSWORD: ${{ steps.fetch.outputs.wiz_password }}
+ 
+  consume-output:
+    runs-on: ubuntu-latest
+    needs: conjur
+    steps:
+      - name: Print secret length
+        run: |
+          secret="${{ needs.conjur.outputs.wiz_client_secret }}"
+          echo "Secret length is: ${#secret}"
