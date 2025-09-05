@@ -2,6 +2,9 @@ name: Main workflow deployment
  
 on:
   workflow_dispatch: # can also use push/pull_request triggers
+  push:
+    branches:
+      - testid1-ConjurTest
  
 jobs:
   conjur:
