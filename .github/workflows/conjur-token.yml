@@ -1,0 +1,31 @@
+name: Get Conjur access token
+on: workflow_dispatch
+permissions:
+  id-token: write     # required to fetch OIDC token
+  contents: read
+
+jobs:
+  jwt-to-conjur:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request GitHub OIDC ID token (audience=conjur-demo)
+        id: idtoken
+        run: |
+          resp=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                 "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=conjur-demo")
+          echo "$resp" | jq -r .value > idtoken.jwt
+          echo "wrote idtoken.jwt"
+
+      - name: Exchange OIDC token for Conjur access token
+        env:
+          CONJUR_URL: "https://pwclab.secretsmgr.cyberark.cloud/api"
+          CONJUR_ACCOUNT: "conjur"
+        run: |
+          curl -sS -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+            --data "jwt=$(cat idtoken.jwt)" \
+            "$CONJUR_URL/authn-jwt/github/$CONJUR_ACCOUNT/authenticate" > conjur.token
+          echo "Saved Conjur access token to conjur.token"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conjur-token
+          path: conjur.token
