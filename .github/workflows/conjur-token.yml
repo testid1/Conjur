@@ -1,31 +1,87 @@
-name: Get Conjur access token
-on: workflow_dispatch
+name: Get Conjur access token (diagnostic)
+
+on:
+  workflow_dispatch:
+
 permissions:
-  id-token: write     # required to fetch OIDC token
+  id-token: write
   contents: read
 
 jobs:
   jwt-to-conjur:
     runs-on: ubuntu-latest
-    steps:
-      - name: Request GitHub OIDC ID token (audience=conjur-demo)
-        id: idtoken
-        run: |
-          resp=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                 "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=conjur-demo")
-          echo "$resp" | jq -r .value > idtoken.jwt
-          echo "wrote idtoken.jwt"
+    env:
+      # --- REQUIRED: set these for your environment ---
+      CONJUR_URL: "https://pwclab.secretsmgr.cyberark.cloud/api"
+      CONJUR_ACCOUNT: "conjur"
+      CONJUR_SERVICE_ID: "github"         # <-- your JWT authenticator service id in Conjur
+      CONJUR_HOST_ID: "github/your-app"   # <-- host id defined in Conjur policy (mapped from JWT claim)
+      OIDC_AUDIENCE: "conjur-demo"        # <-- must match authenticator's expected audience
+      # ------------------------------------------------
 
-      - name: Exchange OIDC token for Conjur access token
-        env:
-          CONJUR_URL: "https://pwclab.secretsmgr.cyberark.cloud/api"
-          CONJUR_ACCOUNT: "conjur"
+    steps:
+      - name: Fetch GitHub OIDC ID token (JWT)
+        shell: bash
         run: |
-          curl -sS -X POST -H "Content-Type: application/x-www-form-urlencoded" \
-            --data "jwt=$(cat idtoken.jwt)" \
-            "$CONJUR_URL/authn-jwt/github/$CONJUR_ACCOUNT/authenticate" > conjur.token
-          echo "Saved Conjur access token to conjur.token"
-      - uses: actions/upload-artifact@v4
+          set -euo pipefail
+          resp=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                 "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")
+          echo "$resp" | jq -r .value > idtoken.jwt
+          test -s idtoken.jwt || { echo "OIDC fetch failed; response was:"; echo "$resp"; exit 1; }
+          echo "idtoken.jwt bytes: $(wc -c < idtoken.jwt)"
+
+          # Inspect key claims to catch audience/issuer/subject issues quickly (non-fatal if jq absent)
+          payload=$(cut -d. -f2 idtoken.jwt | tr '_-' '/+' | base64 -d 2>/dev/null || true)
+          echo "JWT claims preview:"
+          { echo "$payload" | jq '{iss,aud,sub,repository,ref,workflow,job_workflow_ref}' ; } 2>/dev/null || echo "$payload"
+
+      - name: Exchange OIDC JWT for Conjur access token
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/$CONJUR_HOST_ID/authenticate"
+
+          http_code=$(curl -sS -o conjur.token -w "%{http_code}" \
+            -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "jwt=$(cat idtoken.jwt)" \
+            "$url" || true)
+
+          bytes=$(wc -c < conjur.token)
+          echo "Conjur HTTP status: $http_code"
+          echo "conjur.token bytes: $bytes"
+
+          # Fail if not 200 or empty token
+          if [[ "$http_code" != "200" || "$bytes" -eq 0 ]]; then
+            echo "Authenticate failed. Response body (first 500 bytes shown, hex):"
+            head -c 500 conjur.token | xxd || true
+            exit 1
+          fi
+
+      - name: (Optional) Verify identity via whoami
+        shell: bash
+        run: |
+          set -euo pipefail
+          whoami_code=$(curl -sS -o whoami.json -w "%{http_code}" \
+            -H 'Authorization: Token token="'"$(cat conjur.token)"'"' \
+            "$CONJUR_URL/authn/$CONJUR_ACCOUNT/whoami" || true)
+          echo "whoami HTTP: $whoami_code"
+          if [[ "$whoami_code" == "200" ]]; then
+            jq . whoami.json || cat whoami.json
+          else
+            echo "whoami not available or denied; continuing."
+          fi
+
+      - name: Guard against empty token
+        shell: bash
+        run: |
+          test -s conjur.token || { echo "conjur.token is empty"; exit 1; }
+
+      # -------- Debug-only: upload token (avoid in production) --------
+      # The token is sensitive and short-lived. Prefer to USE it in this job.
+      - name: Upload token artifact (debug only)
+        uses: actions/upload-artifact@v4
         with:
           name: conjur-token
           path: conjur.token
+          retention-days: 1
+      # ----------------------------------------------------------------
