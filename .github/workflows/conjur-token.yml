@@ -1,83 +1,86 @@
-name: Get Conjur access token (diagnostic)
-on: workflow_dispatch
+# .github/workflows/conjur-jwt-auth.yml
+name: Conjur JWT Auth (Hardcoded)
 
-permissions:
-  id-token: write
-  contents: read
+on:
+  workflow_dispatch:
 
 jobs:
-  jwt-to-conjur:
+  conjur-auth:
     runs-on: ubuntu-latest
-    env:
-      # ----- update only if different in your tenant -----
-      CONJUR_URL: "https://pwclab.secretsmgr.cyberark.cloud/api"
-      CONJUR_ACCOUNT: "conjur"
-      CONJUR_SERVICE_ID: "Github_auth"     # from your screenshot (case-sensitive)
-      CONJUR_HOST_ID_ENC: "data%2Fconjur_test"  # URL-encoded: data/conjur_test -> data%2Fconjur_test
-      OIDC_AUDIENCE: "conjur-demo"         # must match authenticator config
-      # ---------------------------------------------------
+    permissions:
+      id-token: write   # Required for GitHub OIDC
+      contents: read
 
     steps:
-      - name: Fetch GitHub OIDC ID token (JWT)
+      - name: Checkout (optional)
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Conjur via GitHub OIDC (hardcoded)
+        id: conjur_auth
         shell: bash
         run: |
           set -euo pipefail
-          resp=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                 "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")
-          echo "$resp" | jq -r .value > idtoken.jwt
-          test -s idtoken.jwt || { echo "OIDC fetch failed; response was:"; echo "$resp"; exit 1; }
-          echo "idtoken.jwt bytes: $(wc -c < idtoken.jwt)"
 
-          # Inspect key claims (helps catch repo/aud mismatches)
-          payload=$(cut -d. -f2 idtoken.jwt | tr '_-' '/+' | base64 -d 2>/dev/null || true)
-          echo "JWT claims preview:"
-          { echo "$payload" | jq '{iss,aud,sub,repository,ref,workflow,job_workflow_ref}' ; } 2>/dev/null || echo "$payload"
+          # ---- Hardcoded Conjur/GitHub OIDC config ----
+          CONJUR_BASE_URL="https://pwclab.secretsmgr.cyberark.cloud"
+          CONJUR_ACCOUNT="conjur"
+          SERVICE_ID="Github_auth"
+          OIDC_AUDIENCE="conjur-demo"
+          AUTH_URL="${CONJUR_BASE_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
+          # ---------------------------------------------
 
-      - name: Exchange OIDC JWT for Conjur access token
-        shell: bash
-        run: |
-          set -euo pipefail
-          url="$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/$CONJUR_HOST_ID_ENC/authenticate"
+          echo "Requesting GitHub OIDC JWT for audience: ${OIDC_AUDIENCE}"
+          REQ_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}?audience=${OIDC_AUDIENCE}"
 
-          http_code=$(curl -sS -o conjur.token -w "%{http_code}" \
-            -X POST -H "Content-Type: application/x-www-form-urlencoded" \
-            --data-urlencode "jwt=$(cat idtoken.jwt)" \
-            "$url" || true)
+          JWT=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${REQ_URL}" | jq -r .value)
 
-          bytes=$(wc -c < conjur.token)
-          echo "Conjur HTTP status: $http_code"
-          echo "conjur.token bytes: $bytes"
-
-          # Fail if not OK or empty
-          if [[ "$http_code" != "200" || "$bytes" -eq 0 ]]; then
-            echo "Authenticate failed. Response body (first 500 bytes, hex):"
-            head -c 500 conjur.token | xxd || true
+          if [ -z "${JWT}" ] || [ "${JWT}" = "null" ]; then
+            echo "Failed to obtain GitHub OIDC token. Ensure 'permissions: id-token: write' is set."
             exit 1
           fi
 
-      - name: Verify identity (optional)
+          echo "GitHub JWT length: ${#JWT}"
+          printf "%s" "${JWT}" > id_token.txt
+
+          echo "Authenticating to Conjur at: ${AUTH_URL}"
+          SESSION_TOKEN=$(curl -sS \
+            --request POST "${AUTH_URL}" \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --header "Accept-Encoding: base64" \
+            --data-urlencode "jwt=${JWT}")
+
+          if [ -z "${SESSION_TOKEN}" ]; then
+            echo "Failed to obtain Conjur session token. Check authenticator config and audience."
+            exit 1
+          fi
+
+          echo "Conjur session token length: ${#SESSION_TOKEN}"
+          printf "%s" "${SESSION_TOKEN}" > session_token.txt
+
+          # Expose as step outputs (optional for later steps)
+          echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
+          echo "session=${SESSION_TOKEN}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload raw jwt
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-jwt
+          path: id_token.txt
+
+      - name: Upload raw session token
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-session
+          path: session_token.txt
+
+      # Optional: decode session token and show authenticated user
+      - name: Show whoami (optional)
         shell: bash
         run: |
           set -euo pipefail
-          whoami_code=$(curl -sS -o whoami.json -w "%{http_code}" \
-            -H 'Authorization: Token token="'"$(cat conjur.token)"'"' \
-            "$CONJUR_URL/authn/$CONJUR_ACCOUNT/whoami" || true)
-          echo "whoami HTTP: $whoami_code"
-          if [[ "$whoami_code" == "200" ]]; then
-            jq . whoami.json || cat whoami.json
-          else
-            echo "whoami not available or denied; continuing."
-          fi
+          SESSION_TOKEN_B64=$(cat session_token.txt)
+          # Conjur session token (base64) decodes to JSON with "user_id"
+          USER=$(printf "%s" "${SESSION_TOKEN_B64}" | base64 --decode 2>/dev/null | jq -r .user_id || true)
+          echo "Authenticated as: ${USER:-unknown}"
 
-      - name: Guard against empty token
-        shell: bash
-        run: |
-          test -s conjur.token || { echo "conjur.token is empty"; exit 1; }
-
-      # Debug only — avoid persisting tokens in real runs
-      - name: Upload token artifact (debug)
-        uses: actions/upload-artifact@v4
-        with:
-          name: conjur-token
-          path: conjur.token
-          retention-days: 1
