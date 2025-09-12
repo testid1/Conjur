@@ -37,7 +37,7 @@ jobs:
   
           echo "Session Token length: ${#SESSION_TOKEN}"
           echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
-          echo "$SESSION_TOKEN" > session_token.json
+          echo "$SESSION_TOKEN" > session_token.txt
           echo "===/whoami check ==="
           AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
           WHOAMI_STATUS=$(curl -k -sS -o whoami.json -w "%{http_code}" \
@@ -55,4 +55,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: raw-session
-          path: session_token.json
+          path: session_token.txt
