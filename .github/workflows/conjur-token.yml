@@ -8,41 +8,44 @@ jobs:
   conjur-auth:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   
+      id-token: write
       contents: read
 
     steps:
-      - name: Checkout (optional)
-        uses: actions/checkout@v4
-
       - name: Authenticate to Conjur via GitHub OIDC
         id: conjur_auth
         shell: bash
         run: |
           set -euo pipefail
 
-          # ----  Conjur/GitHub OIDC config ----
-          CONJUR_BASE_URL="https://pwclab.secretsmgr.cyberark.cloud/api"
+          # ---- Conjur/GitHub OIDC config (hardcoded) ----
+          CONJUR_BASE_URL="https://pwclab.secretsmgr.cyberark.cloud"   # no /api
           CONJUR_ACCOUNT="conjur"
-          SERVICE_ID="GitMain2"
+          SERVICE_ID="Github_auth"                                      # use GitMain2 if that's your target
+          OIDC_AUDIENCE="conjur-demo"                                   # matches your screenshot
           AUTH_URL="${CONJUR_BASE_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
-          # ---------------------------------------------
+          # ------------------------------------------------
 
-           # 1) Mint the GitHub OIDC JWT
-          GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
-          echo "Request URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
-          echo "JWT length: ${#GIT_JWT}"
-          echo "Git Hub Token: "
-          echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
-          echo "$GIT_JWT" > id_token.txt
-          RESP=$(curl -k -v -X POST "$CONJUR_BASE_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
-          echo "RESP: $RESP"
-          # 2) Exchange it for a Conjur session token
-          SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_BASE_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
-  
-          echo "Session Token length: ${#SESSION_TOKEN}"
-          echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
-          echo "$SESSION_TOKEN" > session_token.txt
+          echo "Requesting GitHub OIDC JWT (audience=${OIDC_AUDIENCE})"
+          REQ_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}?audience=${OIDC_AUDIENCE}"
+          GIT_JWT=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+                    "${REQ_URL}" | jq -r .value)
+
+          if [ -z "${GIT_JWT}" ] || [ "${GIT_JWT}" = "null" ]; then
+            echo "Failed to obtain GitHub OIDC token. Ensure 'permissions: id-token: write' is set."
+            exit 1
+          fi
+
+          echo "GitHub JWT length: ${#GIT_JWT}"
+          printf "%s" "${GIT_JWT}" > id_token.txt
+
+          echo "Authenticating to Conjur at: ${AUTH_URL}"
+          SESSION_TOKEN=$(curl -sS \
+            --request POST "${AUTH_URL}" \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --header "Accept-Encoding: base64" \
+            --data-urlencode "jwt=${GIT_JWT}")
+
           if [ -z "${SESSION_TOKEN}" ]; then
             echo "Failed to obtain Conjur session token. Check authenticator config and audience."
             exit 1
@@ -51,8 +54,8 @@ jobs:
           echo "Conjur session token length: ${#SESSION_TOKEN}"
           printf "%s" "${SESSION_TOKEN}" > session_token.txt
 
-          # Expose as step outputs (optional for later steps)
-          echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
+          # Correct outputs (use the right variable names)
+          echo "jwt=${GIT_JWT}" >> "$GITHUB_OUTPUT"
           echo "session=${SESSION_TOKEN}" >> "$GITHUB_OUTPUT"
 
       - name: Upload raw jwt
@@ -67,13 +70,10 @@ jobs:
           name: raw-session
           path: session_token.txt
 
-      # Optional: decode session token and show authenticated user
       - name: Show whoami (optional)
         shell: bash
         run: |
           set -euo pipefail
           SESSION_TOKEN_B64=$(cat session_token.txt)
-          # Conjur session token (base64) decodes to JSON with "user_id"
           USER=$(printf "%s" "${SESSION_TOKEN_B64}" | base64 --decode 2>/dev/null | jq -r .user_id || true)
           echo "Authenticated as: ${USER:-unknown}"
-
