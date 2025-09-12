@@ -22,7 +22,7 @@ jobs:
           CONJUR_URL="https://pwclab.secretsmgr.cyberark.cloud/api"   
           CONJUR_ACCOUNT="conjur"
           SERVICE_ID="GitMain2"                                      # use GitMain2 if that's your target
-          AUTH_URL="${CONJUR_BASE_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
+          AUTH_URL="${CONJUR_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
           # ------------------------------------------------
 
           # 1) Mint the GitHub OIDC JWT
