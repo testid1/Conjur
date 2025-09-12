@@ -22,7 +22,7 @@ jobs:
           set -euo pipefail
 
           # ----  Conjur/GitHub OIDC config ----
-          CONJUR_BASE_URL="https://pwclab.secretsmgr.cyberark.cloud"
+          CONJUR_BASE_URL="https://pwclab.secretsmgr.cyberark.cloud/api"
           CONJUR_ACCOUNT="conjur"
           SERVICE_ID="GitMain2"
           AUTH_URL="${CONJUR_BASE_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
