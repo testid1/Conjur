@@ -1,61 +1,42 @@
-# .github/workflows/conjur-jwt-auth.yml
-name: Conjur JWT Auth
-
-on:
-  workflow_dispatch:
-
-jobs:
-  conjur-auth:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Authenticate to Conjur via GitHub OIDC
+      - name: Exchange for Conjur session token
         id: conjur_auth
         shell: bash
         run: |
           set -euo pipefail
-
-          # ---- Conjur/GitHub OIDC config  ----
-          CONJUR_URL="https://pwclab.secretsmgr.cyberark.cloud/api"   
+          CONJUR_URL="https://pwclab.secretsmgr.cyberark.cloud/api"
           CONJUR_ACCOUNT="conjur"
-          SERVICE_ID="GitMain2"                                      # use GitMain2 if that's your target
-          AUTH_URL="${CONJUR_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
-          # ------------------------------------------------
+          SERVICE_ID="GitMain2"
 
-          # 1) Mint the GitHub OIDC JWT
-          GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
-          echo "Request URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
-          echo "JWT length: ${#GIT_JWT}"
-          echo "Git Hub Token: "
-          echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
-          echo "$GIT_JWT" > id_token.txt
-          RESP=$(curl -k -v -X POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
-          echo "RESP: $RESP"
-          # 2) Exchange it for a Conjur session token
-          SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
-  
-          echo "Session Token length: ${#SESSION_TOKEN}"
-          echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
-          echo "$SESSION_TOKEN" > session_token.txt
-          echo "===/whoami check ==="
-          AUTH_HEADER="Authorization: Token token=\"$SESSION_TOKEN\""
-          WHOAMI_STATUS=$(curl -k -sS -o whoami.json -w "%{http_code}" \
-            -H "$AUTH_HEADER" \
-            "$CONJUR_URL/whoami")
-          echo "HTTP $WHOAMI_STATUS"
-          cat whoami.json; echo
-      - name: Upload raw jwt as an artifact
+          # Mint GitHub OIDC JWT
+          GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                         "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+
+          # Call Conjur Cloud authenticate endpoint, request base64
+          SESSION_TOKEN_B64=$(curl -s --request POST \
+            "$CONJUR_URL/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate" \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --header "Accept-Encoding: base64" \
+            --data-urlencode "jwt=$GIT_JWT")
+
+          echo "Base64 length: ${#SESSION_TOKEN_B64}"
+
+          # 🔽 Decode the base64 into the JSON Secretless expects
+          echo "$SESSION_TOKEN_B64" | base64 -d > session_token.json
+
+          echo "Decoded JSON length: $(wc -c < session_token.json)"
+          head -c 120 session_token.json; echo
+
+          # Save both formats as artifacts if you want
+          echo "$SESSION_TOKEN_B64" > session_token.b64
+
+      - name: Upload decoded JSON token
         uses: actions/upload-artifact@v4
         with:
-          name: raw-jwt
-          path: id_token.txt
-   
-      - name: Upload raw session token as an artifact
+          name: conjur-session-json
+          path: session_token.json
+
+      - name: Upload raw base64 token
         uses: actions/upload-artifact@v4
         with:
-          name: raw-session
-          path: session_token.txt
-      
+          name: conjur-session-b64
+          path: session_token.b64
