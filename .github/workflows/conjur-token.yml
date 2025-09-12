@@ -1,5 +1,5 @@
 # .github/workflows/conjur-jwt-auth.yml
-name: Conjur JWT Auth (Hardcoded)
+name: Conjur JWT Auth
 
 on:
   workflow_dispatch:
@@ -8,48 +8,41 @@ jobs:
   conjur-auth:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # Required for GitHub OIDC
+      id-token: write   
       contents: read
 
     steps:
       - name: Checkout (optional)
         uses: actions/checkout@v4
 
-      - name: Authenticate to Conjur via GitHub OIDC (hardcoded)
+      - name: Authenticate to Conjur via GitHub OIDC
         id: conjur_auth
         shell: bash
         run: |
           set -euo pipefail
 
-          # ---- Hardcoded Conjur/GitHub OIDC config ----
+          # ----  Conjur/GitHub OIDC config ----
           CONJUR_BASE_URL="https://pwclab.secretsmgr.cyberark.cloud"
           CONJUR_ACCOUNT="conjur"
-          SERVICE_ID="Github_auth"
-          OIDC_AUDIENCE="conjur-demo"
+          SERVICE_ID="GitMain2"
           AUTH_URL="${CONJUR_BASE_URL}/authn-jwt/${SERVICE_ID}/${CONJUR_ACCOUNT}/authenticate"
           # ---------------------------------------------
 
-          echo "Requesting GitHub OIDC JWT for audience: ${OIDC_AUDIENCE}"
-          REQ_URL="${ACTIONS_ID_TOKEN_REQUEST_URL}?audience=${OIDC_AUDIENCE}"
-
-          JWT=$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${REQ_URL}" | jq -r .value)
-
-          if [ -z "${JWT}" ] || [ "${JWT}" = "null" ]; then
-            echo "Failed to obtain GitHub OIDC token. Ensure 'permissions: id-token: write' is set."
-            exit 1
-          fi
-
-          echo "GitHub JWT length: ${#JWT}"
-          printf "%s" "${JWT}" > id_token.txt
-
-          echo "Authenticating to Conjur at: ${AUTH_URL}"
-          SESSION_TOKEN=$(curl -sS \
-            --request POST "${AUTH_URL}" \
-            --header "Content-Type: application/x-www-form-urlencoded" \
-            --header "Accept-Encoding: base64" \
-            --data-urlencode "jwt=${JWT}")
-
+           # 1) Mint the GitHub OIDC JWT
+          GIT_JWT=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r .value)
+          echo "Request URL: $ACTIONS_ID_TOKEN_REQUEST_URL"
+          echo "JWT length: ${#GIT_JWT}"
+          echo "Git Hub Token: "
+          echo "JWT=$GIT_JWT" >> $GITHUB_OUTPUT
+          echo "$GIT_JWT" > id_token.txt
+          RESP=$(curl -k -v -X POST "$CONJUR_BASE_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "jwt=$GIT_JWT" --write-out "\nHTTP_STATUS:%{http_code}")
+          echo "RESP: $RESP"
+          # 2) Exchange it for a Conjur session token
+          SESSION_TOKEN=$(curl -s -k --request POST "$CONJUR_BASE_URL/authn-jwt/GitMain2/${CONJUR_ACCOUNT}/authenticate" --header "Content-Type: application/x-www-form-urlencoded" --header "Accept-Encoding: base64" --data-urlencode "jwt=$GIT_JWT")
+  
+          echo "Session Token length: ${#SESSION_TOKEN}"
+          echo "session=$SESSION_TOKEN" >> $GITHUB_OUTPUT
+          echo "$SESSION_TOKEN" > session_token.txt
           if [ -z "${SESSION_TOKEN}" ]; then
             echo "Failed to obtain Conjur session token. Check authenticator config and audience."
             exit 1
