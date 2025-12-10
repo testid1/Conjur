@@ -10,12 +10,12 @@ inputs:
     description: "Conjur account name"
     required: true
 
-  # Which built-in or custom authn-jwt service to use (e.g. 'github' or your custom name)
+  #service id
   SERVICE_ID:
     description: "JWT authenticator service ID"
     required: true
 
-  # The details of your JWT issuer
+  # The details of JWT issuer
   JWT_ISSUER:
     description: "Expected `iss` claim in the JWT"
     required: true
@@ -48,7 +48,7 @@ runs:
           "$ACTIONS_ID_TOKEN_REQUEST_URL" \
           | jq -r .value)
 
-        # 2) Exchange that JWT for a Conjur session token
+        # 2) Exchange JWT for a Conjur session token
         SESSION_TOKEN=$(curl -s -k \
         --request POST \
         "$CONJUR_URL/authn-jwt/$CONJUR_SERVICE_ID/$CONJUR_ACCOUNT/authenticate" \
