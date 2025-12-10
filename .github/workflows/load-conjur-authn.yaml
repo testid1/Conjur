@@ -6,14 +6,14 @@ on:
 
 permissions:
   id-token: write   # needed to mint the GitHub OIDC token
-  contents: read    # to checkout your files
+  contents: read    # to checkout files
 
 jobs:
   load-authenticator:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Get your code
+      # 1) Get code
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -24,7 +24,7 @@ jobs:
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      # 3) Load all config values from your authn-config.yml
+      # 3) Load all config values from authn-config.yml
       - name: Load authenticator config
         id: load-config
         run: |
@@ -35,7 +35,7 @@ jobs:
           echo "AUTHENTICATOR_NAME=$(yq e '.authenticator_name' .github/conjur/authn-config.yml)" >> $GITHUB_ENV
           echo "SERVICE_ID=$(yq e '.service_id' .github/conjur/authn-config.yml)"       >> $GITHUB_ENV
 
-      # 4) Invoke your composite action to build & load the authenticator
+      # 4) Invoke the composite action to build & load the authenticator
       - name: Create Authenticator in Conjur
         uses: ./.github/actions/CreateAuth
         with:
