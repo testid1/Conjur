@@ -191,7 +191,7 @@ runs:
         CONJUR_URL:     ${{ inputs.CONJUR_URL }}
         CONJUR_ACCOUNT: ${{ inputs.CONJUR_ACCOUNT }}
         SESSION_TOKEN:  ${{ steps.auth.outputs.session }}   
-        SECRET_VALUE:   TestPassword        
+        SECRET_VALUE:   TestPassword1        
        
       run: |
         set -euo pipefail
